@@ -74,109 +74,140 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page:        #1A2340;
-    --grid:        rgba(255, 246, 224, .05);
-    --grid-strong: rgba(255, 246, 224, .10);
-    --paper:       #0C0F16;
-    --paper-line:  rgba(190, 214, 244, .13);
-    --margin-rule: #E08A5E;
-    --ink-blue:    #7FB0F0;
-    --ink-blue-dk: #5D8FD4;
-    --ink-deep:    #F3EEE2;
-    --butter:      #F5D96E;
-    --butter-deep: #DCB63F;
-    --ink:         #F3EEE2;
-    --muted:       #A9AEC4;
-    --hair:        rgba(255, 246, 224, .13);
-    --hair-strong: rgba(255, 246, 224, .26);
-    --sage:        #8FC98A;
-    --rust:        #E8926A;
-    --plum:        #BE93CE;
-    --band:        #2C3355;
-    --accent:      #E8926A;
+    /* Dark, as lamplight on a desk rather than a colour scheme inverted.
 
-    /* deep, saturated grounds — one per view, same idea as the light papers */
-    --bg-today:      #16305F;
-    --bg-lists:      #17402F;
-    --bg-calendar:   #262159;
-    --bg-randomizer: #4A2247;
-    --bg-timer:      #55271F;
-    --bg-quiet:      #262B4A;
+       Three things the old one got wrong. The grounds were saturated, so they
+       fought the text sitting on them. The boards were pure black, which
+       against a saturated ground vibrates at the edges and is tiring to read.
+       And the accents were the light palette unchanged, so they glared.
 
-    --paper-today:      #0C0F16;
-    --paper-lists:      #0C0F16;
-    --paper-calendar:   #0C0F16;
-    --paper-randomizer: #0C0F16;
-    --paper-timer:      #0C0F16;
-    --paper-quiet:      #0C0F16;
+       Now: grounds are deep and nearly neutral, with only a whisper of each
+       view's hue, so the views still differ without shouting. Boards sit one
+       step *lighter* than their ground, which is how a surface reads as
+       raised when there is no light to cast a shadow. Ink is warm off-white
+       rather than pure white, and the accents are lightened and drained of
+       some colour so they glow instead of glaring. */
 
-    --shadow-1: rgba(0, 0, 0, .28);
-    --shadow-2: rgba(0, 0, 0, .55);
-    --btn-face: #4A82CC;
-    --btn-edge: #2A548C;
-    --btn-text: #FBF8F0;
+    --page:        #14161C;
+    --grid:        rgba(233, 227, 213, .04);
+    --grid-strong: rgba(233, 227, 213, .075);
+    --paper:       #1E212B;
+    --paper-line:  rgba(143, 182, 242, .15);
+    --margin-rule: #E8916B;
+    --ink-blue:    #8FB6F2;
+    --ink-blue-dk: #6E97D8;
+    --ink-deep:    #F7F2E6;
+    --butter:      #F0CE6B;
+    --butter-deep: #D4AF4C;
+    --ink:         #E9E3D5;
+    --muted:       #9C9483;
+    --hair:        rgba(233, 227, 213, .11);
+    --hair-strong: rgba(233, 227, 213, .22);
+    --sage:        #93C88C;
+    --rust:        #E8916B;
+    --plum:        #C59BD6;
+    --band:        #1B1D26;
+    --accent:      #E8916B;
 
-    --task-1: #7FB0F0;
-    --task-2: #8FC98A;
-    --task-3: #E8926A;
-    --task-4: #DCB63F;
-    --task-5: #BE93CE;
-    --task-6: #F5D96E;
+    /* deep and nearly neutral — each view keeps its hue as a whisper */
+    --bg-today:      #121724;
+    --bg-lists:      #111A15;
+    --bg-calendar:   #131826;
+    --bg-randomizer: #1A1322;
+    --bg-timer:      #1D1512;
+    --bg-quiet:      #15161D;
 
-    --graphite: #B4AFA6;
+    /* boards, one step lighter than the ground they sit on */
+    --paper-today:      #1B2436;
+    --paper-lists:      #182620;
+    --paper-calendar:   #1B2436;
+    --paper-randomizer: #261C31;
+    --paper-timer:      #2A1E19;
+    --paper-quiet:      #1F2029;
+
+    --shadow-1: rgba(0, 0, 0, .40);
+    --shadow-2: rgba(0, 0, 0, .65);
+    --btn-face: #4E80CC;
+    --btn-edge: #2F5590;
+    --btn-text: #F7F2E6;
+
+    --task-1: #8FB6F2;
+    --task-2: #93C88C;
+    --task-3: #E8916B;
+    --task-4: #F0CE6B;
+    --task-5: #B9C7E8;
+    --task-6: #F5E2A0;
+
+    --graphite: #B8B2A6;
     --marker:   #F0705E;
   }
 }
 
 :root[data-theme="dark"] {
-  --page:        #1A2340;
-  --grid:        rgba(255, 246, 224, .05);
-  --grid-strong: rgba(255, 246, 224, .10);
-  --paper:       #0C0F16;
-  --paper-line:  rgba(190, 214, 244, .13);
-  --margin-rule: #E08A5E;
-  --ink-blue:    #7FB0F0;
-  --ink-blue-dk: #5D8FD4;
-  --ink-deep:    #F3EEE2;
-  --butter:      #F5D96E;
-  --butter-deep: #DCB63F;
-  --ink:         #F3EEE2;
-  --muted:       #A9AEC4;
-  --hair:        rgba(255, 246, 224, .13);
-  --hair-strong: rgba(255, 246, 224, .26);
-  --sage:        #8FC98A;
-  --rust:        #E8926A;
-  --plum:        #BE93CE;
-  --band:        #2C3355;
-  --accent:      #E8926A;
+  /* Dark, as lamplight on a desk rather than a colour scheme inverted.
 
-  --bg-today:      #16305F;
-  --bg-lists:      #17402F;
-  --bg-calendar:   #262159;
-  --bg-randomizer: #4A2247;
-  --bg-timer:      #55271F;
-  --bg-quiet:      #262B4A;
+     Three things the old one got wrong. The grounds were saturated, so they
+     fought the text sitting on them. The boards were pure black, which
+     against a saturated ground vibrates at the edges and is tiring to read.
+     And the accents were the light palette unchanged, so they glared.
 
-  --paper-today:      #0C0F16;
-  --paper-lists:      #0C0F16;
-  --paper-calendar:   #0C0F16;
-  --paper-randomizer: #0C0F16;
-  --paper-timer:      #0C0F16;
-  --paper-quiet:      #0C0F16;
+     Now: grounds are deep and nearly neutral, with only a whisper of each
+     view's hue, so the views still differ without shouting. Boards sit one
+     step *lighter* than their ground, which is how a surface reads as
+     raised when there is no light to cast a shadow. Ink is warm off-white
+     rather than pure white, and the accents are lightened and drained of
+     some colour so they glow instead of glaring. */
 
-  --shadow-1: rgba(0, 0, 0, .28);
-  --shadow-2: rgba(0, 0, 0, .55);
-  --btn-face: #4A82CC;
-  --btn-edge: #2A548C;
-  --btn-text: #FBF8F0;
+  --page:        #14161C;
+  --grid:        rgba(233, 227, 213, .04);
+  --grid-strong: rgba(233, 227, 213, .075);
+  --paper:       #1E212B;
+  --paper-line:  rgba(143, 182, 242, .15);
+  --margin-rule: #E8916B;
+  --ink-blue:    #8FB6F2;
+  --ink-blue-dk: #6E97D8;
+  --ink-deep:    #F7F2E6;
+  --butter:      #F0CE6B;
+  --butter-deep: #D4AF4C;
+  --ink:         #E9E3D5;
+  --muted:       #9C9483;
+  --hair:        rgba(233, 227, 213, .11);
+  --hair-strong: rgba(233, 227, 213, .22);
+  --sage:        #93C88C;
+  --rust:        #E8916B;
+  --plum:        #C59BD6;
+  --band:        #1B1D26;
+  --accent:      #E8916B;
 
-  --task-1: #7FB0F0;
-  --task-2: #8FC98A;
-  --task-3: #E8926A;
-  --task-4: #DCB63F;
-  --task-5: #BE93CE;
-  --task-6: #F5D96E;
+  /* deep and nearly neutral — each view keeps its hue as a whisper */
+  --bg-today:      #121724;
+  --bg-lists:      #111A15;
+  --bg-calendar:   #131826;
+  --bg-randomizer: #1A1322;
+  --bg-timer:      #1D1512;
+  --bg-quiet:      #15161D;
 
-  --graphite: #B4AFA6;
+  /* boards, one step lighter than the ground they sit on */
+  --paper-today:      #1B2436;
+  --paper-lists:      #182620;
+  --paper-calendar:   #1B2436;
+  --paper-randomizer: #261C31;
+  --paper-timer:      #2A1E19;
+  --paper-quiet:      #1F2029;
+
+  --shadow-1: rgba(0, 0, 0, .40);
+  --shadow-2: rgba(0, 0, 0, .65);
+  --btn-face: #4E80CC;
+  --btn-edge: #2F5590;
+  --btn-text: #F7F2E6;
+
+  --task-1: #8FB6F2;
+  --task-2: #93C88C;
+  --task-3: #E8916B;
+  --task-4: #F0CE6B;
+  --task-5: #B9C7E8;
+  --task-6: #F5E2A0;
+
+  --graphite: #B8B2A6;
   --marker:   #F0705E;
 }

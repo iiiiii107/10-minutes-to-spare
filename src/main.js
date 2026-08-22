@@ -96,6 +96,41 @@ function clockIcon() {
   ]);
 }
 
+/* A wall calendar in the same flat, drawn style as the clock — the pair read
+   as two things pinned in the corner of the page rather than two icon sets.
+   It goes to Google Calendar, where the timed tasks are written. */
+function calendarIcon() {
+  return svg('svg', { viewBox: '0 0 64 64', fill: 'none', 'aria-hidden': 'true' }, [
+    // the two hangers over the rail
+    svg('path', {
+      d: 'M23 8v10M41 8v10',
+      stroke: 'var(--ink)', 'stroke-width': '3', 'stroke-linecap': 'round',
+    }),
+    // the whole block, which the lower half then covers — this is how the
+    // head band gets the body's rounded top corners without a clip path
+    svg('rect', { x: '8', y: '14', width: '48', height: '42', rx: '10', fill: 'var(--rust)' }),
+    svg('path', {
+      d: 'M8 26 H56 V46 A10 10 0 0 1 46 56 H18 A10 10 0 0 1 8 46 Z',
+      fill: 'var(--butter)',
+    }),
+    // the page below the band
+    svg('rect', {
+      x: '16', y: '32', width: '32', height: '17', rx: '4',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '2.2',
+    }),
+    // a fortnight of dots, so it reads as a calendar and not a control panel
+    ...[38, 44].flatMap((cy) =>
+      [24, 32, 40].map((cx) => svg('circle', { cx: String(cx), cy: String(cy), r: '1.9', fill: 'var(--ink)' })),
+    ),
+    // the outline last, so it sits over every fill
+    svg('rect', {
+      x: '8', y: '14', width: '48', height: '42', rx: '10',
+      stroke: 'var(--ink)', 'stroke-width': '2.8',
+    }),
+    svg('path', { d: 'M8 26 H56', stroke: 'var(--ink)', 'stroke-width': '2.6' }),
+  ]);
+}
+
 function tickClock() {
   const now = new Date();
   const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -125,10 +160,22 @@ function buildMasthead(onToggleTime) {
         el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
       ]);
 
+  // A link rather than a scripted window.open, so it behaves like every other
+  // link — opens in a new tab, and can be middle-clicked or long-pressed.
+  const calendarLink = el('a', {
+    class: 'cal-link',
+    href: 'https://calendar.google.com/calendar/r/day',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    'aria-label': 'Open Google Calendar in a new tab',
+    title: 'Open Google Calendar',
+  }, [calendarIcon()]);
+
   return el('header', { class: 'masthead' }, [
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
       clockButton,
+      calendarLink,
       el('div', { class: 'masthead-inner' }, [heading]),
     ]),
   ]);

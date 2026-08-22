@@ -150,7 +150,7 @@ body[data-view="settings"]   { --accent: var(--sage); }
      onto two lines on a narrow phone — the clock only ever runs to one. The
      clock's own type is matched to the wordmark's below, so on any width wide
      enough for one line the two states measure the same anyway. */
-  padding: 16px 48px 14px;
+  padding: 16px 56px 14px;
   min-height: 120px; justify-content: center;
   text-align: center;
 }
@@ -161,17 +161,24 @@ body[data-view="settings"]   { --accent: var(--sage); }
    A button in the corner of the panel. Tapping it swaps the wordmark for the
    date and time; tapping again brings the wordmark back. */
 
-.clock-btn {
-  position: absolute; top: 12px; right: 12px; z-index: 3;
+/* Two drawn things pinned in the corner of the page: the clock, which swaps
+   the wordmark for the time, and the calendar under it, which opens Google
+   Calendar where the timed tasks are written. */
+.clock-btn, .cal-link {
+  position: absolute; right: 12px; z-index: 3;
   width: 44px; height: 44px; padding: 7px;
   border: none; border-radius: 12px; cursor: pointer;
   background: transparent;
+  display: block;
   transition: background .18s, transform .18s;
 }
-.clock-btn:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.clock-btn:active { transform: scale(.92); }
+.clock-btn { top: 12px; }
+.cal-link { top: 58px; }
+
+.clock-btn:hover, .cal-link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.clock-btn:active, .cal-link:active { transform: scale(.92); }
 .clock-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 9%, transparent); }
-.clock-btn svg { width: 100%; height: 100%; }
+.clock-btn svg, .cal-link svg { width: 100%; height: 100%; }
 
 .clock-face { font-variant-numeric: tabular-nums; }
 .clock-face .clock-time {
@@ -444,7 +451,19 @@ body[data-view="settings"]   { --accent: var(--sage); }
   stroke-linecap: round; stroke-linejoin: round;
 }
 
-.task-meta { margin-left: auto; display: flex; gap: 7px; align-items: center; flex-shrink: 0; }
+/* The meta row may wrap and may shrink. It used to do neither, so anything
+   added to it overflowed the row and landed on top of the task name. */
+.task-meta {
+  margin-left: auto; display: flex; gap: 7px; align-items: center;
+  flex-wrap: wrap; justify-content: flex-end; min-width: 0;
+}
+
+/* The slot, under the name in a list card. */
+.task-when {
+  display: block; margin-top: 2px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+  color: var(--ink-blue); font-variant-numeric: tabular-nums;
+}
 .freq-badge {
   font-size: 10px; font-weight: 700; color: var(--muted);
   background: var(--hair); padding: 3px 8px; border-radius: 6px; white-space: nowrap;

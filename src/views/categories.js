@@ -478,21 +478,25 @@ function categoryCard(category) {
     for (const task of tasks) {
       card.append(
         el('div', { class: 'task-row', style: `--task:${task.color}` }, [
+          // The slot sits under the name rather than out in the meta row:
+          // a list card is narrow, and a badge added to that row had nowhere
+          // to go but on top of the task it belonged to.
           el('span', {
             class: 'task-label',
             style: 'cursor:pointer',
-            text: task.name,
             onClick: () => taskDialog(category.id, task),
-          }),
+          }, [
+            el('span', { class: 'task-name', text: task.name }),
+            slotLabel(task, store.state.settings)
+              ? el('span', {
+                  class: 'task-when',
+                  text: slotLabel(task, store.state.settings),
+                })
+              : null,
+          ]),
           el('div', { class: 'task-meta' }, [
             task.pausedUntil && task.pausedUntil > new Date().toISOString().slice(0, 10)
               ? el('span', { class: 'badge moved', text: 'paused' })
-              : null,
-            slotLabel(task, store.state.settings)
-              ? el('span', {
-                  class: 'slot-badge',
-                  text: slotLabel(task, store.state.settings),
-                })
               : null,
             el('span', { class: 'freq-badge', text: shortFrequency(task) }),
             el('button', {
