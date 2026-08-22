@@ -1,0 +1,135 @@
+/* Design tokens — ported verbatim from the approved design sample (v5).
+   Light is the complete palette on bare :root. Dark redefines only the token
+   values, in both the prefers-color-scheme block (guarded so an explicit light
+   choice still wins) and the [data-theme="dark"] block (so the toggle wins too).
+   Never declare a colour anywhere but here. */
+
+:root {
+  --page:        #EFE9D8;
+  --grid:        rgba(48, 46, 40, .055);
+  --grid-strong: rgba(48, 46, 40, .10);
+  --paper:       #FBF7EB;
+  --paper-line:  rgba(47, 92, 150, .16);
+  --margin-rule: #B8714C;
+  --ink-blue:    #2F5C96;
+  --ink-blue-dk: #21426D;
+  --ink-deep:    #20395C;
+  --butter:      #EFD87B;
+  --butter-deep: #D9B54A;
+  --ink:         #302E28;
+  --muted:       #7C7565;
+  --hair:        rgba(48, 46, 40, .10);
+  --hair-strong: rgba(48, 46, 40, .20);
+  --sage:        #7E9A70;
+  --rust:        #B8714C;
+  --band:        #E4DBBF;
+
+  /* per-view page tints */
+  --bg-today:      #EFE9D8;
+  --bg-lists: #DCE6D6;
+  --bg-calendar:   #D9E2EF;
+  --bg-randomizer: #F1E5BE;
+  --bg-timer:      #EEDCCD;
+
+  --shadow-1: rgba(48, 46, 40, .06);
+  --shadow-2: rgba(48, 46, 40, .28);
+  --btn-face: #2F5C96;
+  --btn-edge: #1C3A61;
+  --btn-text: #FBF7EB;
+
+  /* the six colours a task can be assigned */
+  --task-1: #2F5C96; /* ink blue */
+  --task-2: #7E9A70; /* sage */
+  --task-3: #B8714C; /* rust */
+  --task-4: #D9B54A; /* deep butter */
+  --task-5: #20395C; /* ink */
+  --task-6: #EFD87B; /* butter */
+
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page:        #101F3A;
+    --grid:        rgba(190, 214, 244, .06);
+    --grid-strong: rgba(190, 214, 244, .11);
+    --paper:       #17294A;
+    --paper-line:  rgba(190, 214, 244, .13);
+    --margin-rule: #C4835E;
+    --ink-blue:    #8FB6E8;
+    --ink-blue-dk: #6E9BD4;
+    --ink-deep:    #CFE0F7;
+    --butter:      #E8CE6E;
+    --butter-deep: #C8A343;
+    --ink:         #E6EDF8;
+    --muted:       #94A6C2;
+    --hair:        rgba(190, 214, 244, .14);
+    --hair-strong: rgba(190, 214, 244, .26);
+    --sage:        #92B382;
+    --rust:        #D08A62;
+    --band:        #1D3459;
+
+    --bg-today:      #0D2050;
+    --bg-lists: #13293A;
+    --bg-calendar:   #0E2246;
+    --bg-randomizer: #1F2740;
+    --bg-timer:      #24243F;
+
+    --shadow-1: rgba(0, 0, 0, .30);
+    --shadow-2: rgba(0, 0, 0, .55);
+    --btn-face: #3F79BE;
+    --btn-edge: #24507F;
+    --btn-text: #F4F8FF;
+
+    --task-1: #8FB6E8;
+    --task-2: #92B382;
+    --task-3: #D08A62;
+    --task-4: #C8A343;
+    --task-5: #CFE0F7;
+    --task-6: #E8CE6E;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page:        #101F3A;
+  --grid:        rgba(190, 214, 244, .06);
+  --grid-strong: rgba(190, 214, 244, .11);
+  --paper:       #17294A;
+  --paper-line:  rgba(190, 214, 244, .13);
+  --margin-rule: #C4835E;
+  --ink-blue:    #8FB6E8;
+  --ink-blue-dk: #6E9BD4;
+  --ink-deep:    #CFE0F7;
+  --butter:      #E8CE6E;
+  --butter-deep: #C8A343;
+  --ink:         #E6EDF8;
+  --muted:       #94A6C2;
+  --hair:        rgba(190, 214, 244, .14);
+  --hair-strong: rgba(190, 214, 244, .26);
+  --sage:        #92B382;
+  --rust:        #D08A62;
+  --band:        #1D3459;
+
+  --bg-today:      #0D2050;
+  --bg-lists: #13293A;
+  --bg-calendar:   #0E2246;
+  --bg-randomizer: #1F2740;
+  --bg-timer:      #24243F;
+
+  --shadow-1: rgba(0, 0, 0, .30);
+  --shadow-2: rgba(0, 0, 0, .55);
+  --btn-face: #3F79BE;
+  --btn-edge: #24507F;
+  --btn-text: #F4F8FF;
+
+  --task-1: #8FB6E8;
+  --task-2: #92B382;
+  --task-3: #D08A62;
+  --task-4: #C8A343;
+  --task-5: #CFE0F7;
+  --task-6: #E8CE6E;
+}
