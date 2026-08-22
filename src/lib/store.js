@@ -227,6 +227,41 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- marks -------------------------------------------------------------
+
+  /** The highlighter marks a task as next up without finishing it. */
+  setInstanceFocus(instanceId, focused) {
+    const inst = this.state.instances.find((i) => i.id === instanceId);
+    if (inst) inst.focused = focused || undefined;
+    return this.persist();
+  }
+
+  // ---- doodles -----------------------------------------------------------
+
+  doodleFor(date) {
+    return this.state.doodles?.[date] || null;
+  }
+
+  setDoodle(date, dataUrl) {
+    if (!this.state.doodles) this.state.doodles = {};
+    if (dataUrl) this.state.doodles[date] = dataUrl;
+    else delete this.state.doodles[date];
+    return this.persist();
+  }
+
+  // ---- torn pages --------------------------------------------------------
+
+  /** Days, weeks and months already torn off, so they aren't offered twice. */
+  isTorn(kind, key) {
+    return Boolean(this.state.torn?.[`${kind}:${key}`]);
+  }
+
+  tearOff(kind, key) {
+    if (!this.state.torn) this.state.torn = {};
+    this.state.torn[`${kind}:${key}`] = new Date().toISOString();
+    return this.persist();
+  }
+
   // ---- stickers ----------------------------------------------------------
 
   /** Stickers are yours to place; nothing is pinned to the pad automatically. */

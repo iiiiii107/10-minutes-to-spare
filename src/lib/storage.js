@@ -38,6 +38,8 @@ export const DEFAULT_STATE = {
   instances: [],
   notes: {},
   stickers: {},
+  doodles: {},
+  torn: {},
 };
 
 function clone(value) {

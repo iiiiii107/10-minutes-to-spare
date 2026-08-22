@@ -1,29 +1,36 @@
-import { checkSvg, clear, confetti, el, penSvg, strikeSvg, toast } from '../lib/dom.js';
+import { capturePointer, checkSvg, clear, confetti, el, strikeSvg, svg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { taskDialog } from './categories.js';
 import { pausedBanner } from './pause.js';
+import { doodleMargin, penPot, toolSvg } from './pot.js';
+import { makeTearable, tearable } from './tear.js';
+import { TOOLS, pathFromPoints, simplify } from '../lib/tools.js';
+import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
 import {
-  dayList, monthGrid, monthLegend, periodTitle, weekGrid,
-} from './calendar.js';
-import { completedOnDate, instancesForDate, shortFrequency, wasMoved } from '../lib/schedule.js';
+  completedOnDate, instancesForDate, shortFrequency, wasMoved,
+} from '../lib/schedule.js';
 import { currentStreak, completedTotal, milestoneFor } from '../lib/stats.js';
 import { addDays, fromISO, todayISO } from '../lib/dates.js';
 
 /* The main view. Day is the working list — the one you actually tick things
    off in. Week and month are the same data zoomed out, so the calendar isn't
-   a separate place you have to go. */
+   a separate place you have to go.
 
-/** How far the nib sits from the pointer, matching the pen's drawn geometry.
-    The pen is 21x59, held near the top, so the nib trails ~36px below. */
-const NIB_OFFSET_Y = 36;
+   Marks are made by dragging a tool from the pot across a row. The line
+   follows the drag itself rather than being a canned shape, so a quick swipe
+   scrawls and a slow one comes out neat. */
+
+/** Where the nib sits relative to the pointer, matching the drawn tool. */
+const NIB_OFFSET_Y = 34;
 const NIB_OFFSET_X = 1;
-const PEN_GRAB_X = 10;
-const PEN_GRAB_Y = 21;
+const GRAB_X = 11;
+const GRAB_Y = 20;
 
 let mode = 'day';
 let selected = todayISO();
 let anchor = todayISO();
 let mountRoot = null;
+let activeTool = null;
 
 function rerender() {
   if (mountRoot) renderToday(mountRoot);
@@ -39,17 +46,16 @@ function celebrate(colors) {
   }
 }
 
-/** Shared by tap and pen: mark done, animate, then persist. */
-function completeRow(row, instanceId, color) {
-  if (row.classList.contains('done')) return;
+function completeRow(row, instanceId, color, { instant = false } = {}) {
+  if (row.dataset.settled) return;
+  row.dataset.settled = '1';
   row.classList.add('done');
   celebrate([color, 'var(--butter)', 'var(--sage)', 'var(--ink-blue)']);
 
-  // Let the strike finish drawing before the row leaves.
   setTimeout(() => {
     row.classList.add('clearing');
     setTimeout(() => store.setInstanceStatus(instanceId, 'complete'), 480);
-  }, 420);
+  }, instant ? 60 : 420);
 }
 
 function taskRow(instance, seed) {
@@ -57,10 +63,13 @@ function taskRow(instance, seed) {
   if (!task) return null;
 
   const row = el('div', {
-    class: 'task-row',
+    class: `task-row${instance.focused ? ' focused' : ''}`,
     style: `--task:${task.color}`,
     dataset: { instance: instance.id },
   });
+
+  // The layer freehand marks are drawn onto, in the row's own pixel space.
+  const ink = svg('svg', { class: 'ink', 'aria-hidden': 'true' });
 
   row.append(
     el('button', {
@@ -76,61 +85,113 @@ function taskRow(instance, seed) {
       wasMoved(instance) ? el('span', { class: 'badge moved', text: 'moved' }) : null,
       el('span', { class: 'freq-badge', text: shortFrequency(task) }),
     ]),
+    ink,
   );
   return row;
 }
 
-function attachPen(surface, button, hint) {
-  const pen = penSvg();
-  surface.append(pen);
-  let armed = false;
+/* ---------- the held tool ---------- */
+
+function heldTool(surface, toolId) {
+  const hand = el('div', { class: 'hand-tool', dataset: { tool: toolId } }, [toolSvg(toolId)]);
+  surface.append(hand);
+  hand.style.left = `${Math.max(8, surface.clientWidth - 46)}px`;
+  hand.style.top = '0px';
+
+  const tool = TOOLS[toolId];
+  /** Points collected per row while the nib is inside it. */
+  const strokes = new Map();
   let dragging = false;
 
-  button.addEventListener('click', () => {
-    armed = !armed;
-    surface.classList.toggle('armed', armed);
-    pen.classList.toggle('active', armed);
-    button.textContent = armed ? 'Put pen down' : 'Update list';
-    hint.textContent = armed
-      ? 'Drag the pen across a task to cross it off.'
-      : 'Tap a box, or pick up the pen.';
-    if (armed) {
-      pen.style.left = `${surface.clientWidth - 52}px`;
-      pen.style.top = '0px';
+  function inkFor(row) {
+    if (!strokes.has(row)) strokes.set(row, { points: [], path: null });
+    const stroke = strokes.get(row);
+    if (!stroke.path) {
+      const layer = row.querySelector('.ink');
+      stroke.path = svg('path', {
+        fill: 'none',
+        stroke: tool.ink || getComputedStyle(row).getPropertyValue('--task').trim(),
+        'stroke-width': String(tool.width),
+        'stroke-opacity': String(tool.opacity),
+        'stroke-linecap': tool.id === 'highlighter' ? 'butt' : 'round',
+        'stroke-linejoin': 'round',
+      });
+      layer.append(stroke.path);
     }
-  });
+    return stroke;
+  }
 
-  pen.addEventListener('pointerdown', (event) => {
+  function apply() {
+    for (const [row, stroke] of strokes) {
+      if (stroke.points.length < 2) continue;
+      const instanceId = row.dataset.instance;
+      const color = getComputedStyle(row).getPropertyValue('--task').trim();
+
+      if (tool.completes) {
+        // The freehand line stays on screen while the row clears away.
+        row.classList.add('hand-marked');
+        completeRow(row, instanceId, tool.ink || color, { instant: true });
+      } else if (tool.id === 'highlighter') {
+        store.setInstanceFocus(instanceId, true);
+      }
+    }
+    strokes.clear();
+  }
+
+  hand.addEventListener('pointerdown', (event) => {
     dragging = true;
-    pen.setPointerCapture(event.pointerId);
+    capturePointer(hand, event.pointerId);
+    hand.classList.add('drawing');
     event.preventDefault();
   });
 
-  pen.addEventListener('pointermove', (event) => {
+  hand.addEventListener('pointermove', (event) => {
     if (!dragging) return;
     const box = surface.getBoundingClientRect();
-    pen.style.left = `${event.clientX - box.left - PEN_GRAB_X}px`;
-    pen.style.top = `${event.clientY - box.top - PEN_GRAB_Y}px`;
+    hand.style.left = `${event.clientX - box.left - GRAB_X}px`;
+    hand.style.top = `${event.clientY - box.top - GRAB_Y}px`;
 
     const nibX = event.clientX + NIB_OFFSET_X;
     const nibY = event.clientY + NIB_OFFSET_Y;
 
-    for (const row of surface.querySelectorAll('.task-row:not(.done)')) {
+    for (const row of surface.querySelectorAll('.task-row')) {
       const rect = row.getBoundingClientRect();
       const inside =
         nibX >= rect.left && nibX <= rect.right &&
         nibY >= rect.top && nibY <= rect.bottom;
-      if (inside) {
-        const color = getComputedStyle(row).getPropertyValue('--task').trim();
-        completeRow(row, row.dataset.instance, color);
+      if (!inside) continue;
+
+      if (tool.erases) {
+        // The eraser takes marks off rather than leaving one.
+        row.querySelector('.ink')?.replaceChildren();
+        row.classList.remove('hand-marked', 'done');
+        delete row.dataset.settled;
+        if (row.classList.contains('focused')) {
+          row.classList.remove('focused');
+          store.setInstanceFocus(row.dataset.instance, false);
+        }
+        continue;
       }
+
+      const stroke = inkFor(row);
+      stroke.points.push({ x: nibX - rect.left, y: nibY - rect.top });
+      stroke.path.setAttribute('d', pathFromPoints(simplify(stroke.points)));
     }
   });
 
-  const stop = () => { dragging = false; };
-  pen.addEventListener('pointerup', stop);
-  pen.addEventListener('pointercancel', stop);
+  const stop = () => {
+    if (!dragging) return;
+    dragging = false;
+    hand.classList.remove('drawing');
+    apply();
+  };
+  hand.addEventListener('pointerup', stop);
+  hand.addEventListener('pointercancel', stop);
+
+  return hand;
 }
+
+/* ---------- done summary ---------- */
 
 function doneSummary(date) {
   const done = completedOnDate(store.state.instances, date);
@@ -173,34 +234,50 @@ function doneSummary(date) {
   return el('div', { class: 'done-summary' }, [toggle, list]);
 }
 
-/** The working list for today: pen, quick add, and tickable rows. */
+/** The working list for today: the tools, the rows, and whatever's finished. */
 function todayBody(card) {
   const date = todayISO();
   const pending = instancesForDate(store.state.instances, date);
 
-  // Nothing to do means nothing on screen — the heading alone says it.
   if (!store.state.tasks.length) return;
 
   if (!pending.length) {
     card.append(el('div', { class: 'empty' }, ['All clear for today ✦']));
   } else {
     const surface = el('div', { class: 'pen-surface' });
-    const hint = el('span', { class: 'pen-hint', text: 'Tap a box, or pick up the pen.' });
-    const penButton = el('button', { class: 'btn btn-ghost btn-sm', text: 'Update list' });
 
-    surface.append(el('div', { class: 'pen-bar' }, [penButton, hint]));
+    // On a phone the pot is a small row above the list rather than a jar.
+    surface.append(
+      el('div', { class: 'pen-bar' }, [
+        penPot(activeTool, pickTool, true),
+        el('span', {
+          class: 'pen-hint',
+          text: activeTool
+            ? `Drag the ${TOOLS[activeTool].label.toLowerCase()} across a task.`
+            : 'Tap a box, or pick up a tool.',
+        }),
+      ]),
+    );
+
     pending.forEach((instance, index) => {
       const row = taskRow(instance, index);
       if (row) surface.append(row);
     });
 
     card.append(surface);
-    attachPen(surface, penButton, hint);
+    if (activeTool) heldTool(surface, activeTool);
   }
 
   const summary = doneSummary(date);
   if (summary) card.append(summary);
 }
+
+function pickTool(id) {
+  activeTool = activeTool === id ? null : id;
+  rerender();
+}
+
+/* ---------- navigation ---------- */
 
 function step(direction) {
   if (mode === 'month') {
@@ -233,11 +310,8 @@ export function renderToday(root) {
   const isToday = mode === 'day' && selected === today;
   const card = el('div', { class: 'card paper' });
 
-  // Zooming out to week or month swaps the page to ledger paper, so the
-  // surface still tells you which mode you're in.
   document.body.dataset.view = mode === 'day' ? 'today' : 'calendar';
 
-  // Pausing lives at the top of the page, above everything else.
   if (store.state.tasks.length) root.append(pausedBanner());
 
   const modes = el(
@@ -258,11 +332,8 @@ export function renderToday(root) {
     ),
   );
 
-  // Title on the left, the one action on the right, and the zoom control on
-  // its own full-width row underneath — so nothing wraps awkwardly on a phone.
   card.append(
     el('div', { class: 'cal-head' }, [
-      // The masthead already carries today's date, so the heading doesn't.
       isToday
         ? el('h2', { text: 'Today' })
         : el('div', { class: 'row' }, [
@@ -288,8 +359,8 @@ export function renderToday(root) {
   } else if (isToday) {
     todayBody(card);
   } else {
-    card.append(dayList(selected));
     card.append(
+      dayList(selected),
       el('div', { style: 'margin-top:16px' }, [
         el('button', {
           class: 'btn btn-secondary btn-sm',
@@ -300,5 +371,22 @@ export function renderToday(root) {
     );
   }
 
-  root.append(card);
+  // The board: the pot and doodle margin stand beside the sheet on a computer.
+  const board = el('div', { class: 'board' }, [
+    isToday && store.state.tasks.length
+      ? el('aside', { class: 'board-side' }, [
+          penPot(activeTool, pickTool),
+          doodleMargin(today),
+        ])
+      : null,
+    el('div', { class: 'board-main' }, [card]),
+  ]);
+
+  root.append(board);
+
+  // A finished day, week or month can be pulled off the pad.
+  if (isToday) {
+    const target = tearable(today);
+    if (target) makeTearable(card, target, () => rerender());
+  }
 }

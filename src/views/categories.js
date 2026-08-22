@@ -5,6 +5,15 @@ import { PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency } from '../l
 /* Categories and the tasks inside them. Everything is editable: tap a
    category to rename it, change its emoji or colour, or delete it. */
 
+/** Paper stocks a list can be written on. */
+const PATTERNS = [
+  { id: 'plain', label: 'Plain' },
+  { id: 'ruled', label: 'Ruled' },
+  { id: 'grid', label: 'Grid' },
+  { id: 'dots', label: 'Dotted' },
+  { id: 'graph', label: 'Graph' },
+];
+
 const EMOJI_CHOICES = [
   '🏠', '🧹', '🧺', '🍳', '🪴', '💻', '📚', '✉️',
   '💪', '🧘', '🚶', '💧', '🐾', '🎨', '🎸', '💰',
@@ -102,6 +111,7 @@ function categoryDialog(existing) {
     name: existing?.name || '',
     emoji: existing?.emoji || '📁',
     color: existing?.color || TASK_COLORS[0],
+    pattern: existing?.pattern || 'plain',
   };
 
   const nameInput = el('input', {
@@ -120,6 +130,28 @@ function categoryDialog(existing) {
     el('div', { class: 'field' }, [
       el('label', { text: 'Colour' }),
       colorPicker(draft.color, (v) => { draft.color = v; }),
+    ]),
+    el('div', { class: 'field' }, [
+      el('label', { text: 'Paper' }),
+      el(
+        'div',
+        { class: 'seg seg-wrap' },
+        PATTERNS.map((pattern) =>
+          el('button', {
+            type: 'button',
+            class: 'seg-item',
+            text: pattern.label,
+            'aria-selected': String(pattern.id === draft.pattern),
+            onClick: (event) => {
+              draft.pattern = pattern.id;
+              for (const node of event.currentTarget.parentNode.children) {
+                node.setAttribute('aria-selected', 'false');
+              }
+              event.currentTarget.setAttribute('aria-selected', 'true');
+            },
+          }),
+        ),
+      ),
     ]),
   ]);
 
@@ -204,14 +236,13 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
   function paintCounts() {
     clearNode(countRow);
     const max = PERIOD_MAX[draft.period];
-    // A month or a year offers more slots than fit as buttons, so those step
-    // through sensible counts rather than every possible number.
+    // Common counts as one tap each, then "xx" for anything else.
     const choices =
       draft.period === 'week'
         ? [1, 2, 3, 4, 5, 6, 7]
         : draft.period === 'month'
-          ? [1, 2, 3, 4, 6, 8, 12]
-          : [1, 2, 3, 4, 6, 12];
+          ? [1, 2, 3, 4, 6]
+          : [1, 2, 3, 4, 6];
 
     if (draft.count > max) draft.count = max;
 
@@ -230,6 +261,41 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
         }),
       );
     }
+
+    // "xx" turns into a number field so any count is reachable, not just the
+    // handful that fit as buttons.
+    const isCustom = !choices.includes(draft.count);
+    const custom = el('button', {
+      type: 'button',
+      class: 'seg-item seg-custom',
+      text: isCustom ? String(draft.count) : 'xx',
+      'aria-label': 'Some other number of times',
+      'aria-selected': String(isCustom),
+      onClick: () => {
+        const field = el('input', {
+          class: 'seg-item seg-input',
+          type: 'number',
+          min: '1',
+          max: String(max),
+          value: String(draft.count),
+          'aria-label': `How many times a ${draft.period}`,
+        });
+        const commit = () => {
+          const n = Math.round(Number(field.value));
+          if (Number.isFinite(n) && n >= 1) draft.count = Math.min(n, max);
+          paintCounts();
+        };
+        field.addEventListener('blur', commit);
+        field.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') { event.preventDefault(); commit(); }
+        });
+        custom.replaceWith(field);
+        field.focus();
+        field.select();
+      },
+    });
+    countRow.append(custom);
+
     freqValue.textContent = describeFrequency(draft.count, draft.period);
   }
 
@@ -318,8 +384,8 @@ function categoryCard(category) {
   const tasks = store.tasksInCategory(category.id);
   // Each card is tinted with its own colour, like a pad of coloured notes.
   const card = el('div', {
-    class: 'card paper note',
-    style: `background: color-mix(in srgb, ${category.color} 16%, var(--paper))`,
+    class: `card paper note note-${category.pattern || 'plain'}`,
+    style: `--note-tint: ${category.color}`,
   });
 
   card.append(

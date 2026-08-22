@@ -35,6 +35,18 @@ export function svg(tag, props = {}, children = []) {
   return node;
 }
 
+/**
+ * Pointer capture, guarded. Browsers throw if the id isn't an active pointer,
+ * and losing capture is never worth breaking the whole interaction over.
+ */
+export function capturePointer(node, pointerId) {
+  try {
+    node.setPointerCapture(pointerId);
+  } catch {
+    /* keep going without capture */
+  }
+}
+
 export function clear(node) {
   while (node.firstChild) node.firstChild.remove();
   return node;

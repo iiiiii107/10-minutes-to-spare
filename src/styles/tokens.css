@@ -1,8 +1,13 @@
-/* Design tokens — ported verbatim from the approved design sample (v5).
+/* Design tokens.
+
    Light is the complete palette on bare :root. Dark redefines only the token
    values, in both the prefers-color-scheme block (guarded so an explicit light
-   choice still wins) and the [data-theme="dark"] block (so the toggle wins too).
-   Never declare a colour anywhere but here. */
+   choice still wins) and the [data-theme="dark"] block (so the toggle wins
+   too). Never declare a colour anywhere but here.
+
+   Each view has its own page tint *and* its own paper stock, in both themes.
+   Dark isn't a navy wash: it's the same set of coloured papers, just deep
+   instead of pale, so the app stays as lively with the lights off. */
 
 :root {
   --page:        #EFE9D8;
@@ -22,14 +27,25 @@
   --hair-strong: rgba(48, 46, 40, .20);
   --sage:        #7E9A70;
   --rust:        #B8714C;
+  --plum:        #8A6A93;
   --band:        #E4DBBF;
+  --accent:      #B8714C;
 
   /* per-view page tints */
   --bg-today:      #EFE9D8;
-  --bg-lists: #DCE6D6;
+  --bg-lists:      #DCE6D6;
   --bg-calendar:   #D9E2EF;
   --bg-randomizer: #F1E5BE;
   --bg-timer:      #EEDCCD;
+  --bg-quiet:      #EFE9D8;
+
+  /* per-view paper stocks — barely tinted in the light theme */
+  --paper-today:      #FBF7EB;
+  --paper-lists:      #F8FAF4;
+  --paper-calendar:   #F8FAFD;
+  --paper-randomizer: #FDFAEF;
+  --paper-timer:      #FDF7F2;
+  --paper-quiet:      #FBF7EB;
 
   --shadow-1: rgba(48, 46, 40, .06);
   --shadow-2: rgba(48, 46, 40, .28);
@@ -37,7 +53,7 @@
   --btn-edge: #1C3A61;
   --btn-text: #FBF7EB;
 
-  /* the six colours a task can be assigned */
+  /* the colours a task can be assigned */
   --task-1: #2F5C96; /* ink blue */
   --task-2: #7E9A70; /* sage */
   --task-3: #B8714C; /* rust */
@@ -45,7 +61,9 @@
   --task-5: #20395C; /* ink */
   --task-6: #EFD87B; /* butter */
 
-  --accent: #B8714C;
+  /* marks the pen pot can leave */
+  --graphite: #6B6660;
+  --marker:   #C4483C;
 
   --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
   --font-body: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
@@ -56,83 +74,109 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page:        #101F3A;
-    --grid:        rgba(190, 214, 244, .06);
-    --grid-strong: rgba(190, 214, 244, .11);
-    --paper:       #17294A;
+    --page:        #1A2340;
+    --grid:        rgba(255, 246, 224, .05);
+    --grid-strong: rgba(255, 246, 224, .10);
+    --paper:       #232A44;
     --paper-line:  rgba(190, 214, 244, .13);
-    --margin-rule: #C4835E;
-    --ink-blue:    #8FB6E8;
-    --ink-blue-dk: #6E9BD4;
-    --ink-deep:    #CFE0F7;
-    --butter:      #E8CE6E;
-    --butter-deep: #C8A343;
-    --ink:         #E6EDF8;
-    --muted:       #94A6C2;
-    --hair:        rgba(190, 214, 244, .14);
-    --hair-strong: rgba(190, 214, 244, .26);
-    --sage:        #92B382;
-    --rust:        #D08A62;
-    --band:        #1D3459;
+    --margin-rule: #E08A5E;
+    --ink-blue:    #7FB0F0;
+    --ink-blue-dk: #5D8FD4;
+    --ink-deep:    #F3EEE2;
+    --butter:      #F5D96E;
+    --butter-deep: #DCB63F;
+    --ink:         #F3EEE2;
+    --muted:       #A9AEC4;
+    --hair:        rgba(255, 246, 224, .13);
+    --hair-strong: rgba(255, 246, 224, .26);
+    --sage:        #8FC98A;
+    --rust:        #E8926A;
+    --plum:        #BE93CE;
+    --band:        #2C3355;
+    --accent:      #E8926A;
 
-    --bg-today:      #0D2050;
-    --bg-lists: #13293A;
-    --bg-calendar:   #0E2246;
-    --bg-randomizer: #1F2740;
-    --bg-timer:      #24243F;
-    --accent: #D08A62;
+    /* deep, saturated grounds — one per view, same idea as the light papers */
+    --bg-today:      #16305F;
+    --bg-lists:      #17402F;
+    --bg-calendar:   #262159;
+    --bg-randomizer: #4A2247;
+    --bg-timer:      #55271F;
+    --bg-quiet:      #262B4A;
 
-    --shadow-1: rgba(0, 0, 0, .30);
+    --paper-today:      #1E3A6B;
+    --paper-lists:      #1E4A39;
+    --paper-calendar:   #2E2A64;
+    --paper-randomizer: #562B52;
+    --paper-timer:      #61322A;
+    --paper-quiet:      #2E3352;
+
+    --shadow-1: rgba(0, 0, 0, .28);
     --shadow-2: rgba(0, 0, 0, .55);
-    --btn-face: #3F79BE;
-    --btn-edge: #24507F;
-    --btn-text: #F4F8FF;
+    --btn-face: #4A82CC;
+    --btn-edge: #2A548C;
+    --btn-text: #FBF8F0;
 
-    --task-1: #8FB6E8;
-    --task-2: #92B382;
-    --task-3: #D08A62;
-    --task-4: #C8A343;
-    --task-5: #CFE0F7;
-    --task-6: #E8CE6E;
+    --task-1: #7FB0F0;
+    --task-2: #8FC98A;
+    --task-3: #E8926A;
+    --task-4: #DCB63F;
+    --task-5: #BE93CE;
+    --task-6: #F5D96E;
+
+    --graphite: #B4AFA6;
+    --marker:   #F0705E;
   }
 }
 
 :root[data-theme="dark"] {
-  --page:        #101F3A;
-  --grid:        rgba(190, 214, 244, .06);
-  --grid-strong: rgba(190, 214, 244, .11);
-  --paper:       #17294A;
+  --page:        #1A2340;
+  --grid:        rgba(255, 246, 224, .05);
+  --grid-strong: rgba(255, 246, 224, .10);
+  --paper:       #232A44;
   --paper-line:  rgba(190, 214, 244, .13);
-  --margin-rule: #C4835E;
-  --ink-blue:    #8FB6E8;
-  --ink-blue-dk: #6E9BD4;
-  --ink-deep:    #CFE0F7;
-  --butter:      #E8CE6E;
-  --butter-deep: #C8A343;
-  --ink:         #E6EDF8;
-  --muted:       #94A6C2;
-  --hair:        rgba(190, 214, 244, .14);
-  --hair-strong: rgba(190, 214, 244, .26);
-  --sage:        #92B382;
-  --rust:        #D08A62;
-  --band:        #1D3459;
+  --margin-rule: #E08A5E;
+  --ink-blue:    #7FB0F0;
+  --ink-blue-dk: #5D8FD4;
+  --ink-deep:    #F3EEE2;
+  --butter:      #F5D96E;
+  --butter-deep: #DCB63F;
+  --ink:         #F3EEE2;
+  --muted:       #A9AEC4;
+  --hair:        rgba(255, 246, 224, .13);
+  --hair-strong: rgba(255, 246, 224, .26);
+  --sage:        #8FC98A;
+  --rust:        #E8926A;
+  --plum:        #BE93CE;
+  --band:        #2C3355;
+  --accent:      #E8926A;
 
-  --bg-today:      #0D2050;
-  --bg-lists: #13293A;
-  --bg-calendar:   #0E2246;
-  --bg-randomizer: #1F2740;
-  --bg-timer:      #24243F;
+  --bg-today:      #16305F;
+  --bg-lists:      #17402F;
+  --bg-calendar:   #262159;
+  --bg-randomizer: #4A2247;
+  --bg-timer:      #55271F;
+  --bg-quiet:      #262B4A;
 
-  --shadow-1: rgba(0, 0, 0, .30);
+  --paper-today:      #1E3A6B;
+  --paper-lists:      #1E4A39;
+  --paper-calendar:   #2E2A64;
+  --paper-randomizer: #562B52;
+  --paper-timer:      #61322A;
+  --paper-quiet:      #2E3352;
+
+  --shadow-1: rgba(0, 0, 0, .28);
   --shadow-2: rgba(0, 0, 0, .55);
-  --btn-face: #3F79BE;
-  --btn-edge: #24507F;
-  --btn-text: #F4F8FF;
+  --btn-face: #4A82CC;
+  --btn-edge: #2A548C;
+  --btn-text: #FBF8F0;
 
-  --task-1: #8FB6E8;
-  --task-2: #92B382;
-  --task-3: #D08A62;
-  --task-4: #C8A343;
-  --task-5: #CFE0F7;
-  --task-6: #E8CE6E;
+  --task-1: #7FB0F0;
+  --task-2: #8FC98A;
+  --task-3: #E8926A;
+  --task-4: #DCB63F;
+  --task-5: #BE93CE;
+  --task-6: #F5D96E;
+
+  --graphite: #B4AFA6;
+  --marker:   #F0705E;
 }

@@ -1,4 +1,4 @@
-import { clear, el, modal, toast } from '../lib/dom.js';
+import { capturePointer, clear, el, modal, toast } from '../lib/dom.js';
 import { store, TASK_COLORS } from '../lib/store.js';
 import { instancesForDate } from '../lib/schedule.js';
 import { todayISO } from '../lib/dates.js';
@@ -110,7 +110,7 @@ function placedSticker(pad, date, sticker) {
     const box = node.getBoundingClientRect();
     const grabX = event.clientX - box.left;
     const grabY = event.clientY - box.top;
-    node.setPointerCapture(event.pointerId);
+    capturePointer(node, event.pointerId);
     let x = sticker.x;
     let y = sticker.y;
 

@@ -38,11 +38,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- per-view paper stock ---------- */
 
 body[data-view="today"] {
+  --paper: var(--paper-today);
   background-color: var(--bg-today);
   background-image: linear-gradient(var(--grid-strong) 1px, transparent 1px);
   background-size: 100% 34px;
 }
 body[data-view="lists"] {
+  --paper: var(--paper-lists);
   background-color: var(--bg-lists);
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
@@ -52,6 +54,7 @@ body[data-view="lists"] {
   background-size: 22px 22px, 22px 22px, 110px 110px, 110px 110px;
 }
 body[data-view="calendar"] {
+  --paper: var(--paper-calendar);
   background-color: var(--bg-calendar);
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
@@ -59,6 +62,7 @@ body[data-view="calendar"] {
   background-size: 100% 30px, 132px 100%;
 }
 body[data-view="randomizer"] {
+  --paper: var(--paper-randomizer);
   background-color: var(--bg-randomizer);
   background-image:
     radial-gradient(circle, var(--grid-strong) 1.8px, transparent 1.9px),
@@ -67,12 +71,14 @@ body[data-view="randomizer"] {
   background-position: 0 0, 23px 23px;
 }
 body[data-view="timer"] {
+  --paper: var(--paper-timer);
   background-color: var(--bg-timer);
   background-image: repeating-radial-gradient(circle at 50% 34%,
     transparent 0 38px, var(--grid-strong) 38px 39px, transparent 39px 78px);
 }
 body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
-  background-color: var(--bg-today);
+  --paper: var(--paper-quiet);
+  background-color: var(--bg-quiet);
   background-image:
     radial-gradient(circle, var(--grid-strong) 1.4px, transparent 1.5px);
   background-size: 30px 30px;
@@ -83,7 +89,7 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 body[data-view="today"]      { --accent: var(--rust); }
 body[data-view="lists"]      { --accent: var(--sage); }
 body[data-view="calendar"]   { --accent: var(--ink-blue); }
-body[data-view="randomizer"] { --accent: var(--butter-deep); }
+body[data-view="randomizer"] { --accent: var(--plum); }
 body[data-view="timer"]      { --accent: var(--rust); }
 body[data-view="stats"],
 body[data-view="settings"]   { --accent: var(--sage); }
@@ -102,6 +108,12 @@ body[data-view="settings"]   { --accent: var(--sage); }
   position: absolute; inset: 0; border-radius: inherit;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   opacity: .05; mix-blend-mode: multiply; pointer-events: none; z-index: 0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paper::before { mix-blend-mode: screen; opacity: .04; }
+}
+:root[data-theme="dark"] .paper::before {
+  mix-blend-mode: screen; opacity: .04;
 }
 .paper > * { position: relative; z-index: 1; }
 
@@ -140,10 +152,14 @@ body[data-view="settings"]   { --accent: var(--sage); }
   position: relative;
   display: flex; flex-direction: column; align-items: center;
   gap: 6px;
-  /* Side padding keeps the wordmark clear of the clock button in the corner. */
+  /* Side padding keeps the wordmark clear of the clock button in the corner.
+     A fixed minimum keeps the panel the same height whether it's showing the
+     wordmark or the clock, so toggling doesn't jolt the page. */
   padding: 26px 58px 22px;
+  min-height: 132px; justify-content: center;
   text-align: center;
 }
+@media (min-width: 720px) { .masthead-inner { min-height: 150px; } }
 .masthead-inner .wordmark { text-wrap: balance; }
 
 /* ---------- clock ----------
@@ -311,6 +327,13 @@ body[data-view="settings"]   { --accent: var(--sage); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .seg-wrap .seg-item { flex: 1 1 44px; }
+.seg-custom { font-style: italic; letter-spacing: .04em; }
+.seg-input {
+  flex: 1 1 62px; width: 62px; text-align: center;
+  border: 1.5px solid var(--ink-blue); background: var(--paper);
+  color: var(--ink); font-weight: 700; box-shadow: none;
+}
+.seg-input:focus { outline: none; }
 
 /* The Other section's tabs sit directly on top of its panel, sharing its
    rounded top corners — so they read as tabs of that panel rather than a
@@ -461,8 +484,36 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .empty .hint { font-family: var(--font-body); font-style: normal; font-size: 13px; margin-top: 10px; }
 
 /* Category cards read as a pad of coloured notes: the tint comes from the
-   category's own colour, set inline, with the paper grain still on top. */
-.note { box-shadow: 0 1px 2px var(--shadow-1), 0 12px 28px -14px var(--shadow-2); }
+   list's own colour, and the pattern is the paper stock it's written on. */
+.note {
+  background: color-mix(in srgb, var(--note-tint) 16%, var(--paper));
+  box-shadow: 0 1px 2px var(--shadow-1), 0 12px 28px -14px var(--shadow-2);
+  --note-line: color-mix(in srgb, var(--note-tint) 40%, transparent);
+}
+.note-ruled {
+  background-image: repeating-linear-gradient(
+    transparent 0 27px, var(--note-line) 27px 28px);
+  background-position: 0 12px;
+}
+.note-grid {
+  background-image:
+    repeating-linear-gradient(transparent 0 21px, var(--note-line) 21px 22px),
+    repeating-linear-gradient(90deg, transparent 0 21px, var(--note-line) 21px 22px);
+}
+.note-dots {
+  background-image: radial-gradient(var(--note-line) 1.4px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+.note-graph {
+  background-image:
+    repeating-linear-gradient(transparent 0 11px, var(--note-line) 11px 12px),
+    repeating-linear-gradient(90deg, transparent 0 11px, var(--note-line) 11px 12px);
+  background-size: 12px 12px, 12px 12px;
+}
+/* Patterned notes keep their tint underneath the pattern. */
+.note-ruled, .note-grid, .note-dots, .note-graph {
+  background-color: color-mix(in srgb, var(--note-tint) 14%, var(--paper));
+}
 .note .task-row { border-top-color: color-mix(in srgb, var(--ink) 12%, transparent); }
 .note .freq-badge { background: color-mix(in srgb, var(--paper) 55%, transparent); }
 
@@ -473,20 +524,114 @@ body[data-view="settings"]   { --accent: var(--sage); }
 }
 .cat-title { font-size: 19px; flex: 1; min-width: 0; }
 
+/* ---------- the board ----------
+   On a computer the pot and the doodle margin stand beside the sheet. On a
+   phone the aside is hidden and a two-tool row sits above the list instead. */
+
+.board { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.board-side { display: none; }
+
+@media (min-width: 860px) {
+  .board { grid-template-columns: 96px 1fr; align-items: start; }
+  .board-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 14px; }
+}
+
+/* ---------- pen pot ---------- */
+
+.pot-shell { display: flex; justify-content: center; }
+.pot-jar {
+  width: 100%;
+  padding: 12px 8px 10px;
+  border-radius: 10px 10px 16px 16px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--paper) 70%, transparent),
+    color-mix(in srgb, var(--ink) 12%, var(--paper)));
+  box-shadow: inset 0 2px 6px -3px var(--shadow-2), 0 8px 18px -12px var(--shadow-2);
+  border: 1px solid var(--hair-strong);
+}
+.pot { display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
+.pot-tool {
+  flex: 1 1 0; min-width: 0;
+  border: none; background: none; cursor: pointer; padding: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transform: translateY(6px);
+  transition: transform .18s cubic-bezier(.3, 1.4, .5, 1);
+}
+.pot-tool svg { width: 100%; max-width: 22px; height: auto; }
+.pot-tool:hover { transform: translateY(0); }
+/* The chosen tool lifts out of the jar. */
+.pot-tool[aria-checked="true"] { transform: translateY(-10px); }
+.pot-label {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+  opacity: 0; transition: opacity .18s;
+}
+.pot-tool[aria-checked="true"] .pot-label,
+.pot-tool:hover .pot-label { opacity: 1; }
+
+/* the phone version: a flat row, pen and eraser only */
+.pot-compact { display: flex; gap: 6px; align-items: center; }
+.pot-compact .pot-tool {
+  flex: 0 0 auto; transform: none;
+  padding: 4px 9px; border-radius: 8px;
+  flex-direction: row; gap: 6px;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  box-shadow: 0 2px 0 var(--hair-strong);
+}
+.pot-compact .pot-tool svg { width: 13px; }
+.pot-compact .pot-label { opacity: 1; font-size: 9.5px; }
+.pot-compact .pot-tool[aria-checked="true"] {
+  background: var(--btn-face); box-shadow: 0 2px 0 var(--btn-edge);
+}
+.pot-compact .pot-tool[aria-checked="true"] .pot-label { color: var(--btn-text); }
+@media (min-width: 860px) { .pot-compact { display: none; } }
+
+/* ---------- doodle margin ---------- */
+
+.doodle-wrap {
+  position: relative;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  border: 1px dashed var(--hair-strong);
+  padding: 16px 4px 20px;
+}
+.doodle { width: 100%; height: 240px; display: block; cursor: crosshair; color: var(--ink); touch-action: none; }
+.doodle-hint, .doodle-clear {
+  position: absolute; left: 0; right: 0; text-align: center;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted);
+}
+.doodle-hint { top: 5px; }
+.doodle-clear { bottom: 4px; background: none; border: none; cursor: pointer; padding: 2px; }
+.doodle-clear:hover { color: var(--ink); }
+
+/* ---------- the held tool ---------- */
+
+.hand-tool {
+  position: absolute; width: 22px; height: 58px; z-index: 40;
+  cursor: grab; touch-action: none;
+  transform: rotate(11deg); transform-origin: 50% 90%;
+  filter: drop-shadow(2px 4px 4px var(--shadow-2));
+  overflow: visible;
+}
+.hand-tool svg { width: 100%; height: 100%; }
+.hand-tool.drawing { cursor: grabbing; }
+
+/* freehand marks, drawn in the row's own pixel space */
+.ink {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none; z-index: 3;
+}
+/* A hand-drawn mark replaces the canned strike on that row. */
+.task-row.hand-marked .strike path { stroke-dashoffset: 240; }
+.task-row.focused {
+  background: color-mix(in srgb, var(--butter) 32%, transparent);
+}
+
 /* ---------- pen ---------- */
 
 .pen-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .pen-hint { font-size: 11.5px; font-weight: 600; color: var(--muted); }
-.pen {
-  position: absolute; width: 21px; height: 59px; z-index: 40;
-  cursor: grab; touch-action: none; display: none;
-  transform: rotate(12deg); transform-origin: 50% 88%;
-  filter: drop-shadow(2px 4px 4px var(--shadow-2));
-  overflow: visible;
-}
-.pen.active { display: block; }
-.pen:active { cursor: grabbing; }
-.pen-surface.armed .task-row { background: color-mix(in srgb, var(--task) 7%, transparent); }
 .pen-surface { position: relative; overflow: visible; }
 
 /* ---------- calendar ---------- */
@@ -672,6 +817,58 @@ body[data-view="settings"]   { --accent: var(--sage); }
 }
 .switch[aria-checked="true"] { background: var(--ink-blue); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
+
+/* ---------- tearing a page off ----------
+   The sheet sits over a stub. Pulling the grip drags the sheet down and
+   reveals a ragged edge along its bottom; past the threshold it lifts away
+   and the stub is what's left on the pad. */
+
+.tear-wrap { position: relative; }
+.tear-stub {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  border: 1px dashed var(--hair-strong);
+}
+.tear-stub-text {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 17px; color: var(--muted);
+}
+.tear-sheet { position: relative; z-index: 2; will-change: transform; }
+.tear-sheet.tearing .card { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.tear-edge {
+  position: absolute; left: 0; right: 0; bottom: -13px;
+  width: 100%; height: 14px;
+  filter: drop-shadow(0 2px 1px var(--shadow-1));
+}
+
+.tear-sheet.torn {
+  animation: tearAway .6s cubic-bezier(.4, 0, .7, .2) forwards;
+  pointer-events: none;
+}
+@keyframes tearAway {
+  0%   { opacity: 1; }
+  100% { opacity: 0; transform: translateY(140%) rotate(7deg); }
+}
+
+.tear-grip {
+  position: relative; z-index: 3;
+  margin-top: 6px; padding: 10px 14px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  cursor: grab; touch-action: none; user-select: none;
+}
+.tear-grip:active { cursor: grabbing; }
+.tear-grip-line {
+  width: 46px; height: 4px; border-radius: 999px;
+  background: var(--hair-strong);
+}
+.tear-grip-text {
+  font-family: var(--font-display); font-style: italic; font-weight: 600;
+  font-size: 13.5px; color: var(--accent);
+}
+.tear-grip:hover .tear-grip-line { background: var(--accent); }
 
 /* ---------- pausing ---------- */
 
