@@ -1,7 +1,7 @@
 import { clear, el, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { storage, STAT_KEYS } from '../lib/storage.js';
-import { DAY_SHORT } from '../lib/dates.js';
+import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 
 /* Settings. The principle here: the app counts everything regardless, and
    these choices only decide what's shown and how the schedule behaves. */
@@ -168,11 +168,13 @@ export function renderSettings(root) {
   const week = card('Week', 'how your week is shaped', [
     el('div', { class: 'field' }, [
       el('label', { text: 'Week starts on' }),
+      // Listed Monday-first, which is how the week is usually read; the value
+      // is still the day index the calendar works in.
       segmented(
-        DAY_SHORT.map((label, index) => ({
+        [1, 2, 3, 4, 5, 6, 0].map((index) => ({
           value: index,
-          label,
-          aria: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index],
+          label: DAY_SHORT[index],
+          aria: DAY_FULL[index],
         })),
         settings.weekStartsOn ?? 1,
         (value) => store.updateSettings({ weekStartsOn: value }),

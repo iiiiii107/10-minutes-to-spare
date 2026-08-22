@@ -4,6 +4,7 @@ import { store } from './lib/store.js';
 import { completedOnDate } from './lib/schedule.js';
 import { currentStreak } from './lib/stats.js';
 import { formatLong, todayISO } from './lib/dates.js';
+import { registerServiceWorker } from './lib/pwa.js';
 import { renderToday } from './views/today.js';
 import { renderCategories } from './views/categories.js';
 import { renderRandomizer } from './views/randomizer.js';
@@ -200,6 +201,8 @@ async function boot() {
 
   tickClock();
   setInterval(tickClock, 1000);
+
+  registerServiceWorker(import.meta.env.BASE_URL);
 
   // A day can roll over while the app sits open on a phone.
   setInterval(() => store.refreshSchedule(), 60_000);

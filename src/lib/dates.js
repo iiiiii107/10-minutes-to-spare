@@ -48,6 +48,9 @@ export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 /** Distinct short labels, so Tuesday and Thursday can be told apart. */
 export const DAY_SHORT = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
+export const DAY_FULL = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+];
 
 export function orderedDayNames(weekStartsOn = 1) {
   return Array.from({ length: 7 }, (_, i) => DAY_NAMES[(weekStartsOn + i) % 7]);
