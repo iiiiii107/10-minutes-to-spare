@@ -1,54 +1,42 @@
 /* The pen pot.
 
-   Each tool leaves a different mark and means a different thing, so the pot
-   is a set of actions rather than a set of colours:
+   Only two tools change anything:
 
-     pen         crosses a task off in its own colour
-     pencil      the same, in graphite — a lighter, scratchier line
-     highlighter a broad band that marks a task as next up, without finishing it
-     marker      a thick red strike, for the ones you really want gone
-     eraser      takes the mark back off
+     pen     crosses a task off — the one tool that completes
+     eraser  wipes the marks back off a task
 
-   A phone gets the pen and the eraser only. A pot of five is a desk object;
-   on a small screen it would cost more room than it earns. */
+   The highlighter and the crayon are just for marking up: they leave colour
+   on a task and nothing else happens. That's deliberate — the point of them
+   is annotating your own list, not another way to change its state.
+
+   Every mark is drawn on the task itself. The task row is the canvas, so a
+   mark belongs to that one task and is stored with it. */
 
 export const TOOLS = {
   pen: {
     id: 'pen',
     label: 'Pen',
-    /** Uses the task's own colour. */
+    /** null means "use the task's own colour". */
     ink: null,
     width: 2.2,
     opacity: 1,
     completes: true,
-    mobile: true,
-  },
-  pencil: {
-    id: 'pencil',
-    label: 'Pencil',
-    ink: 'var(--graphite)',
-    width: 1.6,
-    opacity: 0.85,
-    completes: true,
-    mobile: false,
   },
   highlighter: {
     id: 'highlighter',
     label: 'Highlighter',
     ink: 'var(--butter)',
     width: 15,
-    opacity: 0.45,
+    opacity: 0.4,
     completes: false,
-    mobile: false,
   },
-  marker: {
-    id: 'marker',
-    label: 'Marker',
+  crayon: {
+    id: 'crayon',
+    label: 'Crayon',
     ink: 'var(--marker)',
-    width: 5,
-    opacity: 0.95,
-    completes: true,
-    mobile: false,
+    width: 5.5,
+    opacity: 0.8,
+    completes: false,
   },
   eraser: {
     id: 'eraser',
@@ -58,15 +46,10 @@ export const TOOLS = {
     opacity: 1,
     completes: false,
     erases: true,
-    mobile: true,
   },
 };
 
-export const TOOL_ORDER = ['pen', 'pencil', 'highlighter', 'marker', 'eraser'];
-
-export function mobileTools() {
-  return TOOL_ORDER.filter((id) => TOOLS[id].mobile);
-}
+export const TOOL_ORDER = ['pen', 'highlighter', 'crayon', 'eraser'];
 
 /**
  * Turn a run of pointer positions into a smooth path.
@@ -100,4 +83,14 @@ export function simplify(points, minGap = 3) {
   const last = points[points.length - 1];
   if (out[out.length - 1] !== last) out.push(last);
   return out;
+}
+
+/**
+ * Marks are stored in the row's own pixel space, so a resized window would
+ * put them in the wrong place. Storing the row width they were drawn at lets
+ * them be scaled back on.
+ */
+export function scaleMark(mark, width) {
+  if (!mark.w || mark.w === width) return mark.d;
+  return mark.d; // paths scale with the SVG viewBox; see .ink sizing
 }

@@ -525,90 +525,83 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .cat-title { font-size: 19px; flex: 1; min-width: 0; }
 
 /* ---------- the board ----------
-   On a computer the pot and the doodle margin stand beside the sheet. On a
-   phone the aside is hidden and a two-tool row sits above the list instead. */
+   On a computer the pot stands to the right of the sheet. The second column
+   only exists when the pot does — otherwise the calendar gets squeezed into
+   the pot's width. */
 
-.board { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.board { display: grid; grid-template-columns: 1fr; gap: 18px; }
 .board-side { display: none; }
 
-@media (min-width: 860px) {
-  .board { grid-template-columns: 96px 1fr; align-items: start; }
-  .board-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 14px; }
+@media (min-width: 900px) {
+  .board-with-pot { grid-template-columns: 1fr 168px; align-items: start; }
+  .board-with-pot .board-side {
+    display: block; position: sticky; top: 14px;
+  }
 }
 
-/* ---------- pen pot ---------- */
+/* ---------- pen pot ----------
+   A line-art cup with the tools standing in it. The cup is painted over the
+   tools, so they read as sitting inside; the chosen one lifts clear. */
 
 .pot-shell { display: flex; justify-content: center; }
-.pot-jar {
-  width: 100%;
-  padding: 12px 8px 10px;
-  border-radius: 10px 10px 16px 16px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--paper) 70%, transparent),
-    color-mix(in srgb, var(--ink) 12%, var(--paper)));
-  box-shadow: inset 0 2px 6px -3px var(--shadow-2), 0 8px 18px -12px var(--shadow-2);
-  border: 1px solid var(--hair-strong);
+/* The cup is 64px tall and sits flush at the bottom. The tools' feet stop
+   44px up, so they overlap the cup by 20px and stand clear of its rim. */
+.pot-stage { position: relative; width: 156px; padding-bottom: 46px; }
+.pot {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 3px; padding: 0 14px;
 }
-.pot { display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
 .pot-tool {
-  flex: 1 1 0; min-width: 0;
+  flex: 1 1 0; min-width: 0; position: relative; z-index: 1;
   border: none; background: none; cursor: pointer; padding: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  transform: translateY(6px);
-  transition: transform .18s cubic-bezier(.3, 1.4, .5, 1);
+  display: flex; flex-direction: column; align-items: center;
+  transform: translateY(4px);
+  transition: transform .2s cubic-bezier(.3, 1.5, .5, 1);
 }
-.pot-tool svg { width: 100%; max-width: 22px; height: auto; }
-.pot-tool:hover { transform: translateY(0); }
-/* The chosen tool lifts out of the jar. */
-.pot-tool[aria-checked="true"] { transform: translateY(-10px); }
+.pot-tool svg { width: 100%; max-width: 32px; height: auto; display: block; }
+.pot-tool:hover { transform: translateY(-6px); }
+/* the tool in hand stands clear of the cup */
+.pot-tool[aria-checked="true"] { transform: translateY(-18px); }
+
 .pot-label {
+  position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
   font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--muted);
-  opacity: 0; transition: opacity .18s;
+  text-transform: uppercase; color: var(--muted); white-space: nowrap;
+  opacity: 0; transition: opacity .18s; pointer-events: none;
 }
 .pot-tool[aria-checked="true"] .pot-label,
 .pot-tool:hover .pot-label { opacity: 1; }
 
-/* the phone version: a flat row, pen and eraser only */
-.pot-compact { display: flex; gap: 6px; align-items: center; }
+.pot-cup {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 70px; z-index: 2; pointer-events: none;
+  filter: drop-shadow(0 6px 10px var(--shadow-2));
+}
+
+/* the phone version: a flat row of the same four */
+.pot-compact { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .pot-compact .pot-tool {
   flex: 0 0 auto; transform: none;
-  padding: 4px 9px; border-radius: 8px;
-  flex-direction: row; gap: 6px;
+  padding: 4px 10px 4px 6px; border-radius: 8px;
+  flex-direction: row; gap: 5px; align-items: center;
   background: color-mix(in srgb, var(--paper) 70%, transparent);
   box-shadow: 0 2px 0 var(--hair-strong);
 }
-.pot-compact .pot-tool svg { width: 13px; }
-.pot-compact .pot-label { opacity: 1; font-size: 9.5px; }
+.pot-compact .pot-tool:hover { transform: none; }
+.pot-compact .pot-tool svg { width: 14px; }
+.pot-compact .pot-label {
+  position: static; transform: none; opacity: 1; font-size: 9.5px;
+}
 .pot-compact .pot-tool[aria-checked="true"] {
   background: var(--btn-face); box-shadow: 0 2px 0 var(--btn-edge);
 }
 .pot-compact .pot-tool[aria-checked="true"] .pot-label { color: var(--btn-text); }
-@media (min-width: 860px) { .pot-compact { display: none; } }
-
-/* ---------- doodle margin ---------- */
-
-.doodle-wrap {
-  position: relative;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--paper) 55%, transparent);
-  border: 1px dashed var(--hair-strong);
-  padding: 16px 4px 20px;
-}
-.doodle { width: 100%; height: 240px; display: block; cursor: crosshair; color: var(--ink); touch-action: none; }
-.doodle-hint, .doodle-clear {
-  position: absolute; left: 0; right: 0; text-align: center;
-  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--muted);
-}
-.doodle-hint { top: 5px; }
-.doodle-clear { bottom: 4px; background: none; border: none; cursor: pointer; padding: 2px; }
-.doodle-clear:hover { color: var(--ink); }
+@media (min-width: 900px) { .pot-compact { display: none; } }
 
 /* ---------- the held tool ---------- */
 
 .hand-tool {
-  position: absolute; width: 22px; height: 58px; z-index: 40;
+  position: absolute; width: 24px; height: 52px; z-index: 40;
   cursor: grab; touch-action: none;
   transform: rotate(11deg); transform-origin: 50% 90%;
   filter: drop-shadow(2px 4px 4px var(--shadow-2));
@@ -617,16 +610,12 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .hand-tool svg { width: 100%; height: 100%; }
 .hand-tool.drawing { cursor: grabbing; }
 
-/* freehand marks, drawn in the row's own pixel space */
+/* Marks live on the task row — the row is the canvas. */
 .ink {
   position: absolute; inset: 0; width: 100%; height: 100%;
   overflow: visible; pointer-events: none; z-index: 3;
 }
-/* A hand-drawn mark replaces the canned strike on that row. */
 .task-row.hand-marked .strike path { stroke-dashoffset: 240; }
-.task-row.focused {
-  background: color-mix(in srgb, var(--butter) 32%, transparent);
-}
 
 /* ---------- pen ---------- */
 

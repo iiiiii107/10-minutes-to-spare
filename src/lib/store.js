@@ -229,23 +229,22 @@ class Store extends EventTarget {
 
   // ---- marks -------------------------------------------------------------
 
-  /** The highlighter marks a task as next up without finishing it. */
-  setInstanceFocus(instanceId, focused) {
+  /**
+   * Marks drawn on a task. The task row is the canvas, so a mark belongs to
+   * that one task and is kept with it — highlighter and crayon marks are
+   * still there when you come back.
+   */
+  addMark(instanceId, mark) {
     const inst = this.state.instances.find((i) => i.id === instanceId);
-    if (inst) inst.focused = focused || undefined;
+    if (!inst) return this.persist();
+    if (!inst.marks) inst.marks = [];
+    inst.marks.push(mark);
     return this.persist();
   }
 
-  // ---- doodles -----------------------------------------------------------
-
-  doodleFor(date) {
-    return this.state.doodles?.[date] || null;
-  }
-
-  setDoodle(date, dataUrl) {
-    if (!this.state.doodles) this.state.doodles = {};
-    if (dataUrl) this.state.doodles[date] = dataUrl;
-    else delete this.state.doodles[date];
+  clearMarks(instanceId) {
+    const inst = this.state.instances.find((i) => i.id === instanceId);
+    if (inst) delete inst.marks;
     return this.persist();
   }
 

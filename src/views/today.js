@@ -2,7 +2,7 @@ import { capturePointer, checkSvg, clear, confetti, el, strikeSvg, svg, toast } 
 import { store } from '../lib/store.js';
 import { taskDialog } from './categories.js';
 import { pausedBanner } from './pause.js';
-import { doodleMargin, penPot, toolSvg } from './pot.js';
+import { penPot, toolSvg } from './pot.js';
 import { makeTearable, tearable } from './tear.js';
 import { TOOLS, pathFromPoints, simplify } from '../lib/tools.js';
 import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
@@ -63,13 +63,25 @@ function taskRow(instance, seed) {
   if (!task) return null;
 
   const row = el('div', {
-    class: `task-row${instance.focused ? ' focused' : ''}`,
+    class: 'task-row',
     style: `--task:${task.color}`,
     dataset: { instance: instance.id },
   });
 
-  // The layer freehand marks are drawn onto, in the row's own pixel space.
+  // The task row is the canvas: marks are drawn here, in this row's own pixel
+  // space, and stored with this task so they're still here next time.
   const ink = svg('svg', { class: 'ink', 'aria-hidden': 'true' });
+  for (const mark of instance.marks || []) {
+    ink.append(svg('path', {
+      d: mark.d,
+      fill: 'none',
+      stroke: mark.ink,
+      'stroke-width': String(mark.width),
+      'stroke-opacity': String(mark.opacity),
+      'stroke-linecap': mark.cap || 'round',
+      'stroke-linejoin': 'round',
+    }));
+  }
 
   row.append(
     el('button', {
@@ -131,8 +143,16 @@ function heldTool(surface, toolId) {
         // The freehand line stays on screen while the row clears away.
         row.classList.add('hand-marked');
         completeRow(row, instanceId, tool.ink || color, { instant: true });
-      } else if (tool.id === 'highlighter') {
-        store.setInstanceFocus(instanceId, true);
+      } else {
+        // Highlighter and crayon change nothing — they just leave colour on
+        // the task, and that mark is kept.
+        store.addMark(instanceId, {
+          d: stroke.path.getAttribute('d'),
+          ink: tool.ink || color,
+          width: tool.width,
+          opacity: tool.opacity,
+          cap: tool.id === 'highlighter' ? 'butt' : 'round',
+        });
       }
     }
     strokes.clear();
@@ -162,14 +182,12 @@ function heldTool(surface, toolId) {
       if (!inside) continue;
 
       if (tool.erases) {
-        // The eraser takes marks off rather than leaving one.
-        row.querySelector('.ink')?.replaceChildren();
-        row.classList.remove('hand-marked', 'done');
-        delete row.dataset.settled;
-        if (row.classList.contains('focused')) {
-          row.classList.remove('focused');
-          store.setInstanceFocus(row.dataset.instance, false);
+        // The eraser wipes a task's marks off rather than leaving one.
+        if (row.querySelector('.ink')?.childElementCount) {
+          row.querySelector('.ink').replaceChildren();
+          store.clearMarks(row.dataset.instance);
         }
+        row.classList.remove('hand-marked');
         continue;
       }
 
@@ -371,15 +389,13 @@ export function renderToday(root) {
     );
   }
 
-  // The board: the pot and doodle margin stand beside the sheet on a computer.
-  const board = el('div', { class: 'board' }, [
-    isToday && store.state.tasks.length
-      ? el('aside', { class: 'board-side' }, [
-          penPot(activeTool, pickTool),
-          doodleMargin(today),
-        ])
-      : null,
+  // The pot stands to the right of the sheet on a computer. Without it the
+  // board is a single column, or the calendar ends up squeezed into the
+  // pot's width.
+  const showPot = isToday && store.state.tasks.length > 0;
+  const board = el('div', { class: `board${showPot ? ' board-with-pot' : ''}` }, [
     el('div', { class: 'board-main' }, [card]),
+    showPot ? el('aside', { class: 'board-side' }, [penPot(activeTool, pickTool)]) : null,
   ]);
 
   root.append(board);

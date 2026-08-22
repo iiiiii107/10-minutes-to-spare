@@ -1,163 +1,132 @@
-import { capturePointer, el, svg } from '../lib/dom.js';
-import { store } from '../lib/store.js';
-import { TOOLS, TOOL_ORDER, mobileTools } from '../lib/tools.js';
+import { el, svg } from '../lib/dom.js';
+import { TOOLS, TOOL_ORDER } from '../lib/tools.js';
 
-/* The pen pot and the doodle margin — the desk furniture beside the list.
+/* The pen pot: a line-art cup with the tools standing in it, drawn in the
+   same simple outlined style as the reference. Picking one lifts it out of
+   the cup; the cup is drawn over the tools so they read as sitting inside. */
 
-   The pot is a computer thing: five tools standing in a jar next to the board.
-   A phone gets the pen and the eraser inline instead, because a jar of five
-   would cost more room than it earns on a small screen. */
+/** One implement, drawn side-on. */
+function toolArt(id) {
+  const ink = 'var(--ink)';
 
-/** Drawn side-on, so the pot reads as objects standing in a jar. */
-export function toolSvg(id) {
-  const body = {
-    pen: { fill: 'var(--ink-blue)', cap: 'var(--ink-deep)' },
-    pencil: { fill: 'var(--butter-deep)', cap: 'var(--graphite)' },
-    highlighter: { fill: 'var(--butter)', cap: 'var(--butter-deep)' },
-    marker: { fill: 'var(--marker)', cap: 'var(--ink-deep)' },
-  }[id];
-
-  if (id === 'eraser') {
-    return svg('svg', { viewBox: '0 0 24 64', fill: 'none', 'aria-hidden': 'true' }, [
-      svg('rect', {
-        x: '4.5', y: '24', width: '15', height: '34', rx: '3',
-        fill: 'var(--rust)', stroke: 'var(--ink)', 'stroke-width': '1.8',
-      }),
+  if (id === 'pen') {
+    return svg('g', {}, [
       svg('path', {
-        d: 'M4.5 40h15', stroke: 'var(--ink)', 'stroke-width': '1.6',
+        d: 'M11 14 L19 14 L19 62 L11 62 Z',
+        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+      }),
+      svg('path', { d: 'M11 24 H19', stroke: ink, 'stroke-width': '2' }),
+      svg('path', {
+        d: 'M11 14 L15 5 L19 14 Z',
+        fill: 'var(--ink-blue)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
       }),
     ]);
   }
 
-  return svg('svg', { viewBox: '0 0 24 64', fill: 'none', 'aria-hidden': 'true' }, [
-    // barrel
-    svg('path', {
-      d: 'M7 20h10v34H7z', fill: body.fill,
-      stroke: 'var(--ink)', 'stroke-width': '1.8', 'stroke-linejoin': 'round',
-    }),
-    // cap band
+  if (id === 'highlighter') {
+    return svg('g', {}, [
+      svg('rect', {
+        x: '9', y: '18', width: '13', height: '44', rx: '2',
+        fill: 'var(--butter)', stroke: ink, 'stroke-width': '2.2',
+      }),
+      svg('path', {
+        d: 'M10 18 L12 7 H19 L21 18 Z',
+        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+      }),
+      svg('path', { d: 'M9 28 H22', stroke: ink, 'stroke-width': '2' }),
+    ]);
+  }
+
+  if (id === 'crayon') {
+    return svg('g', {}, [
+      svg('path', {
+        d: 'M10 18 L21 18 L21 62 L10 62 Z',
+        fill: 'var(--marker)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+      }),
+      svg('path', {
+        d: 'M10 18 L15.5 7 L21 18 Z',
+        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+      }),
+      svg('path', { d: 'M10 30 H21 M10 38 H21', stroke: ink, 'stroke-width': '1.8' }),
+    ]);
+  }
+
+  // eraser — a stubby block, standing like the ruler in the reference
+  return svg('g', {}, [
     svg('rect', {
-      x: '6.4', y: '16', width: '11.2', height: '6', rx: '2',
-      fill: body.cap, stroke: 'var(--ink)', 'stroke-width': '1.8',
+      x: '8', y: '20', width: '16', height: '42', rx: '2.5',
+      fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2',
     }),
-    // nib
     svg('path', {
-      d: 'M7 54h10l-5 7z', fill: body.cap,
-      stroke: 'var(--ink)', 'stroke-width': '1.8', 'stroke-linejoin': 'round',
+      d: 'M8 33 H24', stroke: ink, 'stroke-width': '2',
+    }),
+    svg('path', {
+      d: 'M9.2 21 H22.8 A1.4 1.4 0 0 1 24 22.4 V33 H8 V22.4 A1.4 1.4 0 0 1 9.2 21 Z',
+      fill: 'var(--rust)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
     }),
   ]);
 }
 
+/** A single tool, sitting in the cup or lifted out of it. */
+function toolButton(id, active, onPick) {
+  return el('button', {
+    class: 'pot-tool',
+    role: 'radio',
+    'aria-checked': String(id === active),
+    'aria-label': TOOLS[id].label,
+    title: TOOLS[id].label,
+    dataset: { tool: id },
+    onClick: () => onPick(id),
+  }, [
+    svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [toolArt(id)]),
+    el('span', { class: 'pot-label', text: TOOLS[id].label }),
+  ]);
+}
+
+/** The cup, outlined, drawn in front of the tools. */
+function cupArt() {
+  return svg('svg', {
+    class: 'pot-cup', viewBox: '0 0 120 64', fill: 'none', 'aria-hidden': 'true',
+  }, [
+    svg('path', {
+      d: 'M9 11 L9 50 C9 57 32 62 60 62 C88 62 111 57 111 50 L111 11',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '3.2',
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+    }),
+    svg('ellipse', {
+      cx: '60', cy: '11', rx: '51', ry: '9',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '3.2',
+    }),
+  ]);
+}
+
+/** The tool currently in hand, drawn large for dragging across a task. */
+export function toolSvg(id) {
+  return svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [toolArt(id)]);
+}
+
 /**
- * @param {string} active current tool id
+ * @param {string|null} active current tool id
  * @param {(id: string) => void} onPick
- * @param {boolean} compact phone layout — pen and eraser only, laid out in a row
+ * @param {boolean} compact phone layout — a flat row instead of a cup
  */
 export function penPot(active, onPick, compact = false) {
-  const ids = compact ? mobileTools() : TOOL_ORDER;
-
-  const pot = el('div', {
-    class: `pot${compact ? ' pot-compact' : ''}`,
-    role: 'radiogroup',
-    'aria-label': 'Pick a tool',
-  });
-
-  for (const id of ids) {
-    pot.append(
-      el('button', {
-        class: 'pot-tool',
-        role: 'radio',
-        'aria-checked': String(id === active),
-        'aria-label': TOOLS[id].label,
-        title: TOOLS[id].label,
-        dataset: { tool: id },
-        onClick: () => onPick(id),
-      }, [
-        toolSvg(id),
-        el('span', { class: 'pot-label', text: TOOLS[id].label }),
-      ]),
+  if (compact) {
+    return el(
+      'div',
+      { class: 'pot pot-compact', role: 'radiogroup', 'aria-label': 'Pick a tool' },
+      TOOL_ORDER.map((id) => toolButton(id, active, onPick)),
     );
   }
 
-  if (compact) return pot;
-
   return el('div', { class: 'pot-shell' }, [
-    el('div', { class: 'pot-jar' }, [pot]),
+    el('div', { class: 'pot-stage' }, [
+      el(
+        'div',
+        { class: 'pot', role: 'radiogroup', 'aria-label': 'Pick a tool' },
+        TOOL_ORDER.map((id) => toolButton(id, active, onPick)),
+      ),
+      cupArt(),
+    ]),
   ]);
-}
-
-/* ---------- doodle margin ---------- */
-
-/**
- * A scribble strip beside the list. Saved per day as an image, so whatever
- * you drew is still there tomorrow if you come back to that day.
- */
-export function doodleMargin(date) {
-  const canvas = el('canvas', { class: 'doodle', 'aria-label': 'Doodle margin' });
-  const wrap = el('div', { class: 'doodle-wrap' }, [
-    el('span', { class: 'doodle-hint', text: 'scribble' }),
-    canvas,
-    el('button', {
-      class: 'doodle-clear',
-      text: 'clear',
-      'aria-label': 'Clear the doodle',
-      onClick: () => {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        store.setDoodle(date, null);
-      },
-    }),
-  ]);
-
-  // Sized once it's in the document, so the backing store matches the box.
-  requestAnimationFrame(() => {
-    const ratio = window.devicePixelRatio || 1;
-    const box = canvas.getBoundingClientRect();
-    if (!box.width) return;
-
-    canvas.width = box.width * ratio;
-    canvas.height = box.height * ratio;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(ratio, ratio);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    const saved = store.doodleFor(date);
-    if (saved) {
-      const image = new Image();
-      image.onload = () => ctx.drawImage(image, 0, 0, box.width, box.height);
-      image.src = saved;
-    }
-
-    let drawing = false;
-
-    canvas.addEventListener('pointerdown', (event) => {
-      drawing = true;
-      capturePointer(canvas, event.pointerId);
-      const rect = canvas.getBoundingClientRect();
-      ctx.strokeStyle = getComputedStyle(canvas).color;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
-      event.preventDefault();
-    });
-
-    canvas.addEventListener('pointermove', (event) => {
-      if (!drawing) return;
-      const rect = canvas.getBoundingClientRect();
-      ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
-      ctx.stroke();
-    });
-
-    const stop = () => {
-      if (!drawing) return;
-      drawing = false;
-      store.setDoodle(date, canvas.toDataURL('image/png'));
-    };
-    canvas.addEventListener('pointerup', stop);
-    canvas.addEventListener('pointercancel', stop);
-    canvas.addEventListener('pointerleave', stop);
-  });
-
-  return wrap;
 }
