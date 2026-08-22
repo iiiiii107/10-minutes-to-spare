@@ -345,6 +345,15 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- calendar ----------------------------------------------------------
+
+  /** Which events we've written, so ones we no longer want can be taken back
+      out. Keyed by event id, valued by the date it was written for. */
+  setCalendarEvents(map) {
+    this.state.calendarEvents = map;
+    return this.persist();
+  }
+
   // ---- completion -------------------------------------------------------
 
   setInstanceStatus(instanceId, status) {

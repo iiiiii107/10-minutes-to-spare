@@ -25,6 +25,7 @@ export const DEFAULT_STATE = {
     weekdayCap: 5,
     minutesPerTask: 10,
     notificationsEnabled: false,
+    calendarSync: false,
     theme: 'system',
     statsVisible: Object.fromEntries(STAT_KEYS.map((s) => [s.id, true])),
     // Your own settings for the two tools that only mark up. The pen and the
@@ -48,6 +49,7 @@ export const DEFAULT_STATE = {
   padMarks: {},
   torn: {},
   archive: [],
+  calendarEvents: {},
 };
 
 export function clone(value) {

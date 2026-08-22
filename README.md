@@ -141,6 +141,51 @@ app ships them to the browser, and they're visible in the built JavaScript
 either way. Privacy comes from the security rules in step 5, not from hiding
 them.
 
+## Google Calendar
+
+Tasks with a time slot are written into your Google Calendar. Tasks without
+one aren't: an all-day task has nowhere to sit in a calendar, and filling one
+with untimed blocks helps nobody. Nothing comes back the other way — the app
+stays the source of truth and the calendar is a copy.
+
+Setting it up, once sync is already working:
+
+1. **Turn the API on.** Google Cloud Console → *APIs & Services → Library →
+   Google Calendar API → Enable*, with the `minutes-to-spare` project selected.
+
+2. **Let the site use the client.** *APIs & Services → Credentials* → open the
+   OAuth 2.0 Client ID Firebase created for the web app → add to **Authorized
+   JavaScript origins**:
+
+   ```
+   https://iiiiii107.github.io
+   http://localhost:5173
+   ```
+
+3. **Give the app the client id.** Copy that client's ID and add it to
+   `.env.local`, and as a repository secret named `VITE_GOOGLE_CLIENT_ID`:
+
+   ```
+   VITE_GOOGLE_CLIENT_ID=…apps.googleusercontent.com
+   ```
+
+4. **Connect.** *Other → Settings → Google Calendar → Connect*. Google asks
+   once for permission to manage events; after that the app renews its own
+   access quietly.
+
+**What it writes.** The next two weeks of slotted tasks, as events carrying
+the task name and its slot, with a five-minute reminder. Event ids are worked
+out from the task and the date rather than stored, so the same task on the
+same day is one event however many devices you sync from. Move a task and its
+event moves; take its time away and the event comes out.
+
+**The honest limit.** GitHub Pages serves files and nothing else, so there is
+no server to hold a long-lived Google token. Access is granted to the browser
+for about an hour at a time and renewed silently while the permission stands —
+which means the calendar is brought up to date when you open the app, not
+continuously in the background. If Google does want asking again, the Settings
+card says so.
+
 ## Deploying
 
 Every push to `main` runs the tests and, if they pass, builds and publishes to

@@ -2,6 +2,10 @@ import { clear, el, svg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { storage, STAT_KEYS } from '../lib/storage.js';
 import { currentAccount, signIn, signOutOfSync, syncConfigured, syncError } from '../lib/sync.js';
+import {
+  calendarConfigured, calendarConnected, connectCalendar, disconnectCalendar, syncCalendar,
+} from '../lib/calendar.js';
+import { slotMinutes } from '../lib/schedule.js';
 import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 
 /* Settings. The principle here: the app counts everything regardless, and
@@ -241,6 +245,111 @@ function syncCard() {
   ]);
 }
 
+/**
+ * Google Calendar. Only tasks with a time slot go across — an all-day task
+ * has nowhere to sit in a calendar. Nothing comes back: the app stays the
+ * source of truth and the calendar is a copy.
+ */
+function calendarCard() {
+  const withSlots = store.state.tasks.filter((t) => slotMinutes(t) != null).length;
+  const total = store.state.tasks.length;
+
+  if (!calendarConfigured()) {
+    return card('Google Calendar', 'not set up for this site yet', [
+      el('p', { class: 'muted' }, [
+        'This copy of the app has no Google client id attached, so it cannot write ',
+        'to a calendar. See the README for the two settings it needs.',
+      ]),
+    ]);
+  }
+
+  const status = el('div', { class: 'muted', style: 'margin-top:12px' });
+  const setStatus = (text, bad = false) => {
+    status.textContent = text;
+    status.className = bad ? 'sync-problem' : 'muted';
+    status.style.marginTop = '12px';
+  };
+
+  const push = async (button, interactive) => {
+    button.disabled = true;
+    setStatus('Writing to your calendar…');
+    try {
+      const { written, removed } = await syncCalendar({ interactive });
+      setStatus(
+        written || removed
+          ? `Done — ${written} put in your calendar${removed ? `, ${removed} taken back out` : ''}.`
+          : 'Nothing to send. Give a task a time and it will appear here.',
+      );
+    } catch (err) {
+      console.warn(err);
+      setStatus(
+        err?.code === 'popup_closed_by_user' || err?.code === 'access_denied'
+          ? 'Google did not grant the permission. Try Connect again.'
+          : err?.status === 401 || err?.status === 403
+            ? 'Google needs asking again — press Connect.'
+            : `Could not write to the calendar. ${err?.message || ''}`.trim(),
+        true,
+      );
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  const counted = total === 0
+    ? 'No tasks yet.'
+    : withSlots === 0
+      ? `None of your ${total} tasks has a time yet. Set one in the task's When field and it will go across.`
+      : `${withSlots} of your ${total} tasks ${withSlots === 1 ? 'has' : 'have'} a time. Only those go across.`;
+
+  if (!calendarConnected()) {
+    return card('Google Calendar', 'put your timed tasks in your calendar', [
+      el('p', { class: 'muted', style: 'margin-bottom:14px', text: counted }),
+      el('button', {
+        class: 'btn btn-secondary google-btn',
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            // Granting flips the setting, which re-renders this card on its
+            // own; the first push happens before that lands.
+            await push(button, true);
+            await connectCalendar();
+          } catch (err) {
+            console.warn(err);
+            setStatus('Google did not grant the permission.', true);
+            button.disabled = false;
+          }
+        },
+      }, [googleMark(), el('span', { text: 'Connect Google Calendar' })]),
+      status,
+    ]);
+  }
+
+  return card('Google Calendar', 'on — your timed tasks are in your calendar', [
+    el('p', { class: 'muted', style: 'margin-bottom:14px', text: counted }),
+    el('div', { class: 'row' }, [
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Send the next two weeks',
+        onClick: (event) => push(event.currentTarget, false),
+      }),
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Disconnect',
+        onClick: async () => {
+          await disconnectCalendar();
+          toast('Calendar disconnected');
+        },
+      }),
+    ]),
+    status,
+    el('p', { class: 'muted', style: 'margin-top:12px' }, [
+      'Events carry the task name and its slot, and are rewritten rather than ',
+      'duplicated when a task moves. Removing a time takes the event back out.',
+    ]),
+  ]);
+}
+
 export function renderSettings(root) {
   clear(root);
   const { settings } = store.state;
@@ -354,7 +463,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(syncCard(), week, stats, appearance, reminders, months, data);
+  root.append(syncCard(), calendarCard(), week, stats, appearance, reminders, months, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */
