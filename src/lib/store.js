@@ -315,6 +315,36 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- marks on the notepad ---------------------------------------------
+
+  /** Anything drawn on the pad, kept per day alongside that day's notes. */
+  padMarks(date) {
+    return this.state.padMarks?.[date] || [];
+  }
+
+  addPadMarks(date, marks) {
+    if (!marks.length) return this.persist();
+    if (!this.state.padMarks) this.state.padMarks = {};
+    if (!this.state.padMarks[date]) this.state.padMarks[date] = [];
+    this.state.padMarks[date].push(...marks);
+    return this.persist();
+  }
+
+  clearPadMarks(date) {
+    if (this.state.padMarks) delete this.state.padMarks[date];
+    return this.persist();
+  }
+
+  /** One pass of the eraser: whatever it went over, gone in a single save. */
+  eraseFromPad(date, { stickerIds = [], clearMarks = false } = {}) {
+    if (stickerIds.length && this.state.stickers?.[date]) {
+      const gone = new Set(stickerIds);
+      this.state.stickers[date] = this.state.stickers[date].filter((s) => !gone.has(s.id));
+    }
+    if (clearMarks && this.state.padMarks) delete this.state.padMarks[date];
+    return this.persist();
+  }
+
   // ---- completion -------------------------------------------------------
 
   setInstanceStatus(instanceId, status) {

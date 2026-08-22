@@ -4,7 +4,8 @@ import { taskDialog } from './categories.js';
 import { pausedBanner } from './pause.js';
 import { penPot, toolSvg } from './pot.js';
 import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable } from './tear.js';
-import { TOOLS, TOOL_LIMITS, pathFromPoints, simplify, toolWith } from '../lib/tools.js';
+import { pathFromPoints, simplify, toolWith } from '../lib/tools.js';
+import { toolStyleDialog } from './tool-style.js';
 import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
 import {
   completedOnDate, instancesForDate, shortFrequency, wasMoved,
@@ -20,9 +21,11 @@ import { addDays, fromISO, todayISO } from '../lib/dates.js';
    follows the drag itself rather than being a canned shape, so a quick swipe
    scrawls and a slow one comes out neat. */
 
-/** Where the nib sits relative to the pointer, matching the drawn tool. */
-const NIB_OFFSET_Y = 34;
-const NIB_OFFSET_X = 1;
+/* Where the nib sits relative to the pointer. The tool is drawn nib-up and
+   turned 150° when grabbed (see .hand-tool), which swings the tip down and to
+   the right of where you're holding it. */
+const NIB_OFFSET_Y = 26;
+const NIB_OFFSET_X = 14;
 const GRAB_X = 11;
 const GRAB_Y = 20;
 
@@ -104,129 +107,6 @@ function taskRow(instance, seed) {
     ink,
   );
   return row;
-}
-
-/* ---------- setting a tool up ---------- */
-
-/** A few ready-made inks, so picking one is usually a single click. */
-const INKS = [
-  '#EFD87B', '#E8C05F', '#B8714C', '#C58E5C',
-  '#7E9A70', '#9CB88C', '#7C93B8', '#5B7291',
-  '#8C6A5A', '#302E28',
-];
-
-/**
- * Double-clicking the highlighter or the crayon opens this: pick its colour
- * and how broad it draws. Marks already on a task keep the settings they were
- * drawn with — this changes the next stroke, not the last one.
- */
-function toolStyleDialog(id) {
-  const tool = TOOLS[id];
-  const limits = TOOL_LIMITS[id];
-  const current = { ...store.state.settings.toolStyles?.[id] };
-  let ink = current.ink || tool.ink;
-  let width = Number(current.width) || tool.width;
-
-  const preview = svg('svg', { class: 'tool-preview', viewBox: '0 0 220 44', 'aria-hidden': 'true' });
-  const stroke = svg('path', {
-    d: 'M 12 30 Q 60 14 108 26 T 208 18',
-    fill: 'none',
-    'stroke-linecap': id === 'highlighter' ? 'butt' : 'round',
-  });
-  preview.append(stroke);
-
-  function draw() {
-    stroke.setAttribute('stroke', ink);
-    stroke.setAttribute('stroke-width', String(width));
-    stroke.setAttribute('stroke-opacity', String(tool.opacity));
-  }
-  draw();
-
-  const swatches = el('div', { class: 'ink-row' });
-  const custom = el('input', {
-    type: 'color',
-    value: ink,
-    'aria-label': 'Any other colour',
-    onInput: (event) => {
-      ink = event.target.value;
-      for (const node of swatches.children) node.setAttribute('aria-pressed', 'false');
-      draw();
-    },
-  });
-
-  for (const value of INKS) {
-    swatches.append(
-      el('button', {
-        type: 'button',
-        class: 'ink-swatch',
-        style: `--ink-swatch:${value}`,
-        'aria-label': value,
-        'aria-pressed': String(value.toLowerCase() === String(ink).toLowerCase()),
-        onClick: (event) => {
-          ink = value;
-          for (const node of swatches.children) node.setAttribute('aria-pressed', 'false');
-          event.currentTarget.setAttribute('aria-pressed', 'true');
-          custom.value = value;
-          draw();
-        },
-      }),
-    );
-  }
-
-  const readout = el('span', { class: 'stepper-value', text: `${width}px` });
-  const slider = el('input', {
-    type: 'range',
-    min: String(limits.min),
-    max: String(limits.max),
-    step: '0.5',
-    value: String(width),
-    'aria-label': 'Width',
-    onInput: (event) => {
-      width = Number(event.target.value);
-      readout.textContent = `${width}px`;
-      draw();
-    },
-  });
-
-  const body = el('div', {}, [
-    el('p', { class: 'muted', style: 'margin-bottom:14px', text: tool.hint }),
-    preview,
-    el('div', { class: 'field' }, [
-      el('label', { text: 'Colour' }),
-      el('div', { class: 'ink-picker' }, [swatches, custom]),
-    ]),
-    el('div', { class: 'field' }, [
-      el('label', { text: 'Width' }),
-      el('div', { class: 'slider-row' }, [slider, readout]),
-    ]),
-  ]);
-
-  modal({
-    title: tool.label,
-    body,
-    actions: [
-      {
-        label: 'Reset',
-        onClick: () => {
-          store.updateSettings({
-            toolStyles: {
-              ...store.state.settings.toolStyles,
-              [id]: { ink: tool.ink, width: tool.width },
-            },
-          });
-        },
-      },
-      {
-        label: 'Save',
-        class: 'btn btn-primary',
-        onClick: () => {
-          store.updateSettings({
-            toolStyles: { ...store.state.settings.toolStyles, [id]: { ink, width } },
-          });
-        },
-      },
-    ],
-  });
 }
 
 /**

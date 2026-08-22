@@ -45,6 +45,7 @@ export const DEFAULT_STATE = {
   instances: [],
   notes: {},
   stickers: {},
+  padMarks: {},
   torn: {},
   archive: [],
 };

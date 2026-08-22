@@ -680,16 +680,32 @@ body[data-view="settings"]   { --accent: var(--sage); }
 
 /* The cup needs the margin beside the sheet, which only exists on a wide
    screen; below that the same tools come out as this row. One breakpoint
-   hands over to the other, so there's no width with neither. */
-@media (min-width: 1180px) { .pot-compact { display: none; } }
+   hands over to the other, so there's no width with neither.
+
+   The notepad's own row is exempt: there's no cup version of it, so it is the
+   only way to reach the tools there at any width. */
+@media (min-width: 1180px) {
+  .pen-bar:not(.pad-pen-bar) .pot-compact { display: none; }
+}
 
 /* ---------- the dragged tool ---------- */
 
+/* Picking a tool up turns it round into a writing grip — nib down and
+   towards the page, the body swung up out of the way of the line it's
+   drawing. It stands nib-up in the pot, so it has to come most of the way
+   round. The nib offsets in the views are measured against this angle. */
 .hand-tool {
   position: fixed; width: 26px; height: 54px; z-index: 90;
   pointer-events: none;
-  transform: rotate(10deg); transform-origin: 50% 90%;
+  /* 150° is the resting state, not the end of the animation — if animations
+     are off or throttled the grip still has to be right, because the nib
+     offsets are measured against it. The keyframe is only the flourish. */
+  transform: rotate(150deg); transform-origin: 50% 50%;
+  animation: tool-grab .14s ease-out;
   filter: drop-shadow(3px 5px 5px var(--shadow-2));
+}
+@keyframes tool-grab {
+  from { transform: rotate(10deg); }
 }
 .hand-tool svg { width: 100%; height: 100%; }
 .hand-tool.returning { opacity: 0; transition: opacity .18s; }
@@ -1103,4 +1119,24 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .sync-problem {
   font-size: 13px; color: var(--rust);
   border-left: 3px solid var(--rust); padding-left: 10px;
+}
+
+/* ---------- writing on the notepad ---------- */
+
+/* Sits over the notes and under the stickers, so a mark can cross the page
+   without making the stickers unclickable. */
+.pad-ink {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 2; overflow: visible;
+}
+.notepad .textarea { position: relative; z-index: 1; }
+
+.pad-pen-bar { margin: 0 0 12px; }
+
+/* A sticker being rubbed out fades rather than blinking away, so you can see
+   which one the eraser caught. */
+.sticker-placed.rubbed-out {
+  opacity: 0; transform: scale(.86);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
 }

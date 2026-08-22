@@ -113,10 +113,15 @@ export function refreshTorn(today = todayISO()) {
 /**
  * The biggest thing available to tear, or null. A month beats a week beats a
  * day, so finishing a month offers the month rather than three separate tears.
+ *
+ * A week is offered as soon as there's nothing left in it — you don't have to
+ * wait for Sunday. Tearing isn't final either: add a task to that week and
+ * refreshTorn() puts the page back, and it can be torn again once that task is
+ * done. The archive entry is replaced rather than doubled.
  */
 export function tearable(today = todayISO()) {
   const [monthStart, monthEnd] = monthBounds(today);
-  if (today === monthEnd && !store.isTorn('month', monthStart) && rangeFinished(monthStart, monthEnd)) {
+  if (!store.isTorn('month', monthStart) && rangeFinished(monthStart, monthEnd)) {
     return {
       kind: 'month',
       key: monthStart,
@@ -127,7 +132,7 @@ export function tearable(today = todayISO()) {
   }
 
   const [weekStart, weekEnd] = weekBounds(today);
-  if (today === weekEnd && !store.isTorn('week', weekStart) && rangeFinished(weekStart, weekEnd)) {
+  if (!store.isTorn('week', weekStart) && rangeFinished(weekStart, weekEnd)) {
     return {
       kind: 'week',
       key: weekStart,
