@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Every signed-in account can read and write exactly one place: its own
+// document tree under its own user id. Nobody can read anyone else's tasks —
+// not another user of the site, and not whoever owns the project.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

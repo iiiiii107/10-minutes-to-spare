@@ -27,8 +27,11 @@ class Store extends EventTarget {
     this.state = await storage.load();
     this.refreshSchedule({ silent: true });
     this.ready = true;
+    // A change from underneath — another tab, another device, or sync being
+    // switched on — replaces our copy. Reconcile so the plan matches today.
     storage.subscribe((incoming) => {
       this.state = incoming;
+      this.refreshSchedule({ silent: true });
       this.emit();
     });
     this.emit();

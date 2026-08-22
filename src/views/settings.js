@@ -1,6 +1,7 @@
-import { clear, el, toast } from '../lib/dom.js';
+import { clear, el, svg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { storage, STAT_KEYS } from '../lib/storage.js';
+import { currentAccount, signIn, signOutOfSync, syncConfigured } from '../lib/sync.js';
 import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 
 /* Settings. The principle here: the app counts everything regardless, and
@@ -160,6 +161,82 @@ function importData() {
   picker.remove();
 }
 
+/** The four-colour G, drawn rather than fetched — nothing loads from Google. */
+function googleMark() {
+  return svg('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true', class: 'google-mark' }, [
+    svg('path', { fill: '#4285F4', d: 'M45 24c0-1.6-.1-2.7-.4-4H24v7.5h12c-.2 2-1.5 5-4.4 7l6.7 5.2C42.2 36.2 45 30.7 45 24Z' }),
+    svg('path', { fill: '#34A853', d: 'M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8 41.2 15.4 46 24 46Z' }),
+    svg('path', { fill: '#FBBC05', d: 'M11.5 28.4A13.3 13.3 0 0 1 10.8 24c0-1.5.3-3 .7-4.4l-7.1-5.5A22 22 0 0 0 2 24c0 3.5.8 6.9 2.4 9.9Z' }),
+    svg('path', { fill: '#EA4335', d: 'M24 10.6c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.4 29.9 2 24 2 15.4 2 8 6.8 4.4 14.1l7.1 5.5C13.3 14.4 18.2 10.6 24 10.6Z' }),
+  ]);
+}
+
+/**
+ * Sync. Signing in with a Google account puts your tasks in your own private
+ * corner of the database, which is the only place your account can reach.
+ */
+function syncCard() {
+  if (!syncConfigured()) {
+    return card('Sync', 'not set up for this site yet', [
+      el('p', { class: 'muted' }, [
+        'This copy of the app has no Firebase project attached, so everything stays in this browser. ',
+        'See the README for the five minutes it takes to add one.',
+      ]),
+    ]);
+  }
+
+  const account = currentAccount();
+
+  if (!account) {
+    return card('Sync', 'the same list on your phone and your computer', [
+      el('p', { class: 'muted', style: 'margin-bottom:14px' }, [
+        'Sign in and your tasks follow you between devices. They are stored under your own account — ',
+        'nobody else who uses this site can see them.',
+      ]),
+      el('button', {
+        class: 'btn btn-secondary google-btn',
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            await signIn();
+          } catch (err) {
+            console.warn(err);
+            toast("Couldn't sign in — try again");
+            button.disabled = false;
+          }
+        },
+      }, [googleMark(), el('span', { text: 'Sign in with Google' })]),
+    ]);
+  }
+
+  return card('Sync', 'on — saving to your Google account', [
+    el('div', { class: 'row-between setting-row' }, [
+      el('div', { class: 'account' }, [
+        account.photo
+          ? el('img', { class: 'account-photo', src: account.photo, alt: '', referrerpolicy: 'no-referrer' })
+          : el('span', { class: 'account-photo account-initial', text: (account.name || '?')[0] }),
+        el('div', {}, [
+          el('div', { style: 'font-weight:700; font-size:14px', text: account.name || 'Signed in' }),
+          el('div', { class: 'muted', text: account.email || '' }),
+        ]),
+      ]),
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Sign out',
+        onClick: async () => {
+          await signOutOfSync();
+          toast('Signed out — back to this browser only');
+        },
+      }),
+    ]),
+    el('p', { class: 'muted', style: 'margin-top:12px' }, [
+      'Changes save straight away and appear on your other devices within a second or two. ',
+      'It keeps working with no connection and catches up when you are back.',
+    ]),
+  ]);
+}
+
 export function renderSettings(root) {
   clear(root);
   const { settings } = store.state;
@@ -260,9 +337,12 @@ export function renderSettings(root) {
 
   const months = card('Month colours', 'tints the calendar month by month', [monthColorGrid()]);
 
-  const data = card('Your data', 'saved on this device', [
+  const signedIn = Boolean(currentAccount());
+  const data = card('Your data', signedIn ? 'saved to your account' : 'saved on this device', [
     el('p', { class: 'muted', style: 'margin-bottom:14px' }, [
-      'Everything lives in this browser for now. Export a backup before clearing your browser data, or to move it to another device by hand.',
+      signedIn
+        ? 'A backup file is still worth keeping — export one any time, and importing replaces what is in your account.'
+        : 'Everything lives in this browser. Export a backup before clearing your browser data, or to move it to another device by hand.',
     ]),
     el('div', { class: 'row' }, [
       el('button', { class: 'btn btn-secondary btn-sm', text: 'Export backup', onClick: exportData }),
@@ -270,7 +350,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(week, stats, appearance, reminders, months, data);
+  root.append(syncCard(), week, stats, appearance, reminders, months, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */

@@ -72,21 +72,64 @@ Two things worth knowing before changing anything:
 
 ## Where your data lives
 
-Right now: in your browser, on the device you're using. Nothing is uploaded and
-there's no account.
+Without sync: in your browser, on the device you're using. Nothing is uploaded
+and there's no account. Settings has an export/import pair for moving data
+across by hand, and for taking a backup before clearing browser data.
 
-That means it does **not** yet sync between your phone and your computer. There
-is an export/import pair in Settings for moving data across by hand, and for
-taking a backup before clearing browser data.
+With sync on: in Firestore, under your own Google account, in a document only
+that account can read or write. Firestore's cache means the app still works
+with no connection — changes queue and go up when you're back.
 
-### Turning on sync
+## Setting up sync
 
-The plan is Firebase (Auth + Firestore, free tier), which also makes the app
-multi-user: anyone who opens the link signs in and gets their own private
-tracker. `src/lib/storage.js` already isolates persistence behind four methods
-(`load`, `save`, `subscribe`, plus export/import), so switching backends means
-adding a `createFirebaseStorage()` alongside `createLocalStorage()` — no view
-code changes.
+Free tier throughout; no billing account needed. Takes about ten minutes.
+
+1. **Make a project.** [console.firebase.google.com](https://console.firebase.google.com)
+   → *Create a project*. Turn Google Analytics off — nothing here needs it.
+
+2. **Turn on Google sign-in.** *Build → Authentication → Get started →
+   Google → Enable*. Pick a support email, save.
+
+3. **Make the database.** *Build → Firestore Database → Create database*.
+   Choose a region near you. Start in **production mode** — the rules come from
+   this repo in step 5, and test mode would leave it open to anyone.
+
+4. **Register the web app.** *Project settings → General → Your apps → Web
+   (`</>`)*. Give it a nickname, skip Firebase Hosting. Copy the
+   `firebaseConfig` object it shows you.
+
+5. **Publish the rules.** In *Firestore Database → Rules*, replace what's there
+   with the contents of [`firestore.rules`](firestore.rules) and publish. This
+   is the part that makes each account private: an account can only reach
+   `users/{its own uid}`, so no one — including whoever owns the project — can
+   read anyone else's tasks.
+
+6. **Allow the site to sign in.** *Authentication → Settings → Authorized
+   domains* → add your Pages domain (e.g. `iiiiii107.github.io`). `localhost`
+   is already there for development.
+
+7. **Give the config to the app.** Copy `.env.example` to `.env.local` and put
+   the config from step 4 in it, as JSON on one line:
+
+   ```
+   VITE_FIREBASE_CONFIG={"apiKey":"…","authDomain":"…","projectId":"…","storageBucket":"…","messagingSenderId":"…","appId":"…"}
+   ```
+
+   For the deployed site, add the same one-line value as a repository secret
+   named `VITE_FIREBASE_CONFIG` (*repo → Settings → Secrets and variables →
+   Actions → New repository secret*). The deploy workflow passes it to the
+   build.
+
+8. **Sign in.** Restart the dev server, open *Other → Settings*, and the Sync
+   card will offer *Sign in with Google*. Whatever is already saved in that
+   browser is uploaded the first time, so nothing is lost.
+
+Leave any of this out and the app simply runs without sync, exactly as before.
+
+**On the config values:** they're identifiers, not secrets — every Firebase web
+app ships them to the browser, and they're visible in the built JavaScript
+either way. Privacy comes from the security rules in step 5, not from hiding
+them.
 
 ## Deploying
 

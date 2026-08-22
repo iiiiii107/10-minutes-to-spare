@@ -10,6 +10,7 @@ import { renderTimer, teardownTimer } from './views/timer.js';
 import { timer } from './lib/timer.js';
 import { renderStats } from './views/stats.js';
 import { applyTheme, renderSettings } from './views/settings.js';
+import { onAccountChange, restoreSession } from './lib/sync.js';
 import { OTHER_DEFAULT, OTHER_ROUTES, otherSwitcher } from './views/other.js';
 
 /* Hash routing keeps GitHub Pages happy: every URL is really index.html, so
@@ -230,6 +231,11 @@ async function boot() {
   store.addEventListener('change', () => go());
 
   go();
+
+  // If you signed in before, pick that session back up: the cloud copy slides
+  // in underneath and every view re-renders on the change it causes.
+  onAccountChange(() => go());
+  restoreSession().catch((err) => console.warn('Sync could not start.', err));
 
   tickClock();
   setInterval(() => {

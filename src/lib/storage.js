@@ -1,9 +1,9 @@
 /* Storage adapter.
 
    Everything the app does goes through `storage`, never through localStorage
-   directly. Today that's backed by the browser; when the Firebase project
-   exists, `createFirebaseStorage()` slots in behind the same four methods and
-   no view code changes. */
+   directly. `storage` is a facade over one backend at a time: the browser when
+   you're signed out, Firestore when you're signed in. Swapping the backend is
+   the whole of "turning sync on" — no view code knows which one is underneath. */
 
 const KEY = '10mts:data:v1';
 
@@ -42,12 +42,12 @@ export const DEFAULT_STATE = {
   archive: [],
 };
 
-function clone(value) {
+export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
 /** Fills in anything a stored payload predates, so old saves keep working. */
-function withDefaults(data) {
+export function withDefaults(data) {
   const settings = { ...DEFAULT_STATE.settings, ...(data.settings || {}) };
 
   // Week start used to be a boolean; it's now a day index, so that anyone
@@ -119,4 +119,48 @@ export function createLocalStorage() {
   };
 }
 
-export const storage = createLocalStorage();
+/* The facade.
+
+   One backend is live at a time. Subscribers register with the facade rather
+   than with a backend, so they survive a swap: signing in replaces what's
+   underneath and everyone is handed the cloud's copy of the state. */
+
+const local = createLocalStorage();
+let backend = local;
+const listeners = new Set();
+let detach = backend.subscribe((state) => listeners.forEach((fn) => fn(state)));
+
+export const storage = {
+  get kind() {
+    return backend.kind;
+  },
+  load: (...args) => backend.load(...args),
+  save: (...args) => backend.save(...args),
+  exportAll: () => backend.exportAll(),
+  importAll: (json) => backend.importAll(json),
+
+  subscribe(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  },
+
+  /** The signed-out backend, for seeding the cloud on first sign-in. */
+  local,
+
+  /**
+   * Put a different backend underneath and hand everyone its state.
+   * @param {object} next a backend, or null to go back to this browser only
+   */
+  async use(next) {
+    const chosen = next || local;
+    if (chosen === backend) return backend.load();
+
+    detach?.();
+    backend = chosen;
+    detach = backend.subscribe((state) => listeners.forEach((fn) => fn(state)));
+
+    const state = await backend.load();
+    listeners.forEach((fn) => fn(state));
+    return state;
+  },
+};
