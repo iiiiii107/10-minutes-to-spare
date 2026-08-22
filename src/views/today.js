@@ -329,7 +329,10 @@ export function renderToday(root) {
   const isToday = mode === 'day' && selected === today;
   const card = el('div', { class: 'card paper' });
 
-  document.body.dataset.view = mode === 'day' ? 'today' : 'calendar';
+  // Day, week and month are three zoom levels of the same page, so they keep
+  // the same paper stock and the same accent. Switching zoom shouldn't feel
+  // like arriving somewhere else.
+  document.body.dataset.view = 'today';
 
   if (store.state.tasks.length) root.append(pausedBanner());
 
@@ -371,21 +374,26 @@ export function renderToday(root) {
     el('div', { style: 'margin-bottom:16px' }, [modes]),
   );
 
+  // One body for all three zooms, so the sheet keeps its shape when you
+  // switch between them instead of collapsing and springing back.
+  const zoomBody = el('div', { class: 'cal-body' });
+  card.append(zoomBody);
+
   if (mode === 'month') {
-    card.append(monthGrid(anchor, selected, selectDay), monthLegend(anchor));
+    zoomBody.append(monthGrid(anchor, selected, selectDay), monthLegend(anchor));
   } else if (mode === 'week') {
-    card.append(weekGrid(anchor, selected, selectDay), monthLegend(anchor));
+    zoomBody.append(weekGrid(anchor, selected, selectDay), monthLegend(anchor));
   } else if (isToday) {
     // A torn page shows a clean sheet until something turns up again.
     if (isTornNow(today)) {
-      card.append(freshPage());
+      zoomBody.append(freshPage());
     } else {
       const body = todayBody();
       const target = tearable(today);
-      card.append(target ? makeTearZone(body, target, () => rerender()) : body);
+      zoomBody.append(target ? makeTearZone(body, target, () => rerender()) : body);
     }
   } else {
-    card.append(
+    zoomBody.append(
       dayList(selected),
       el('div', { style: 'margin-top:16px' }, [
         el('button', {

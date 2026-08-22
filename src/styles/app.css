@@ -53,14 +53,6 @@ body[data-view="lists"] {
     linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px);
   background-size: 22px 22px, 22px 22px, 110px 110px, 110px 110px;
 }
-body[data-view="calendar"] {
-  --paper: var(--paper-calendar);
-  background-color: var(--bg-calendar);
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px);
-  background-size: 100% 30px, 132px 100%;
-}
 body[data-view="randomizer"] {
   --paper: var(--paper-randomizer);
   background-color: var(--bg-randomizer);
@@ -88,7 +80,6 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
    answers the surface behind it rather than sitting apart from it. */
 body[data-view="today"]      { --accent: var(--rust); }
 body[data-view="lists"]      { --accent: var(--sage); }
-body[data-view="calendar"]   { --accent: var(--ink-blue); }
 body[data-view="randomizer"] { --accent: var(--plum); }
 body[data-view="timer"]      { --accent: var(--rust); }
 body[data-view="stats"],
@@ -153,13 +144,17 @@ body[data-view="settings"]   { --accent: var(--sage); }
   display: flex; flex-direction: column; align-items: center;
   gap: 6px;
   /* Side padding keeps the wordmark clear of the clock button in the corner.
-     A fixed minimum keeps the panel the same height whether it's showing the
-     wordmark or the clock, so toggling doesn't jolt the page. */
-  padding: 18px 56px 16px;
-  min-height: 104px; justify-content: center;
+
+     The height is pinned so tapping the clock can't jolt the page. It has to
+     clear the tallest either state ever gets, which is the wordmark wrapped
+     onto two lines on a narrow phone — the clock only ever runs to one. The
+     clock's own type is matched to the wordmark's below, so on any width wide
+     enough for one line the two states measure the same anyway. */
+  padding: 16px 48px 14px;
+  min-height: 120px; justify-content: center;
   text-align: center;
 }
-@media (min-width: 720px) { .masthead-inner { min-height: 120px; } }
+@media (min-width: 720px) { .masthead-inner { padding: 18px 56px 16px; } }
 .masthead-inner .wordmark { text-wrap: balance; }
 
 /* ---------- clock ----------
@@ -181,12 +176,14 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .clock-face { font-variant-numeric: tabular-nums; }
 .clock-face .clock-time {
   font-family: var(--font-display); font-weight: 600;
-  font-size: clamp(38px, 11vw, 62px); line-height: 1;
+  /* Matched to .wordmark so both states measure the same. */
+  font-size: clamp(30px, 7vw, 52px); line-height: 1;
   color: var(--ink-blue); letter-spacing: -1px;
 }
 .clock-face .clock-date {
   font-family: var(--font-display); font-style: italic; font-weight: 500;
-  font-size: clamp(13px, 2.6vw, 16px); color: var(--accent); margin-top: 6px;
+  /* Matched to .wordmark-sub, for the same reason. */
+  font-size: clamp(13px, 2.4vw, 15px); color: var(--accent); margin-top: 6px;
 }
 
 .wordmark {
@@ -631,7 +628,18 @@ body[data-view="settings"]   { --accent: var(--sage); }
 
 /* ---------- calendar ---------- */
 
-.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+/* The header holds one line whichever zoom you're on — "Today" with its add
+   button, or the ‹ month › stepper — so switching doesn't nudge everything
+   below it up and down. */
+.cal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  min-height: 36px;
+}
+
+/* Day, week and month all draw into this. Same width throughout; each zoom
+   takes the height its content actually needs. */
+.cal-body { width: 100%; }
 .cal-head h2 { font-size: 22px; }
 .cal-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
 .cal-modes { display: flex; gap: 5px; }
