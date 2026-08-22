@@ -83,7 +83,8 @@ body[data-view="lists"]      { --accent: var(--sage); }
 body[data-view="randomizer"] { --accent: var(--plum); }
 body[data-view="timer"]      { --accent: var(--rust); }
 body[data-view="stats"],
-body[data-view="settings"]   { --accent: var(--sage); }
+body[data-view="settings"],
+body[data-view="other"]      { --accent: var(--plum); }
 
 /* ---------- paper surface ---------- */
 

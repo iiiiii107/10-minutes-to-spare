@@ -37,7 +37,7 @@
   --bg-calendar:   #D9E2EF;
   --bg-randomizer: #F1E5BE;
   --bg-timer:      #EEDCCD;
-  --bg-quiet:      #EFE9D8;
+  --bg-quiet:      #DED0E8;
 
   /* per-view paper stocks — barely tinted in the light theme */
   --paper-today:      #FBF7EB;
@@ -45,7 +45,7 @@
   --paper-calendar:   #F8FAFD;
   --paper-randomizer: #FDFAEF;
   --paper-timer:      #FDF7F2;
-  --paper-quiet:      #FBF7EB;
+  --paper-quiet:      #FAF5FD;
 
   --shadow-1: rgba(48, 46, 40, .06);
   --shadow-2: rgba(48, 46, 40, .28);
@@ -115,7 +115,7 @@
     --bg-calendar:   #131826;
     --bg-randomizer: #1A1322;
     --bg-timer:      #1D1512;
-    --bg-quiet:      #15161D;
+    --bg-quiet:      #1A1026;
 
     /* boards, one step lighter than the ground they sit on */
     --paper-today:      #1B2436;
@@ -123,7 +123,7 @@
     --paper-calendar:   #1B2436;
     --paper-randomizer: #261C31;
     --paper-timer:      #2A1E19;
-    --paper-quiet:      #1F2029;
+    --paper-quiet:      #261A38;
 
     --shadow-1: rgba(0, 0, 0, .40);
     --shadow-2: rgba(0, 0, 0, .65);
@@ -185,7 +185,7 @@
   --bg-calendar:   #131826;
   --bg-randomizer: #1A1322;
   --bg-timer:      #1D1512;
-  --bg-quiet:      #15161D;
+  --bg-quiet:      #1A1026;
 
   /* boards, one step lighter than the ground they sit on */
   --paper-today:      #1B2436;
@@ -193,7 +193,7 @@
   --paper-calendar:   #1B2436;
   --paper-randomizer: #261C31;
   --paper-timer:      #2A1E19;
-  --paper-quiet:      #1F2029;
+  --paper-quiet:      #261A38;
 
   --shadow-1: rgba(0, 0, 0, .40);
   --shadow-2: rgba(0, 0, 0, .65);
