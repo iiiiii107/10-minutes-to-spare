@@ -1,5 +1,5 @@
 import './styles/app.css';
-import { clear, el } from './lib/dom.js';
+import { clear, el, toast } from './lib/dom.js';
 import { store } from './lib/store.js';
 import { completedOnDate } from './lib/schedule.js';
 import { currentStreak } from './lib/stats.js';
@@ -9,6 +9,7 @@ import { renderToday } from './views/today.js';
 import { renderCategories } from './views/categories.js';
 import { renderRandomizer } from './views/randomizer.js';
 import { renderTimer, teardownTimer } from './views/timer.js';
+import { timer } from './lib/timer.js';
 import { renderStats } from './views/stats.js';
 import { applyTheme, renderSettings } from './views/settings.js';
 import { OTHER_DEFAULT, OTHER_ROUTES, otherSwitcher } from './views/other.js';
@@ -156,7 +157,7 @@ function route({ nav, outlet, mastheadSlot }) {
   mastheadSlot.append(buildMasthead());
   tickClock();
 
-  if (currentView === 'timer' && id !== 'timer') teardownTimer();
+  if (currentView === 'timer' && id !== 'timer') teardownTimer(outlet);
   currentView = id;
 
   document.body.dataset.view = id;
@@ -193,14 +194,28 @@ async function boot() {
 
   // Views re-render on any state change, so completing a task updates the
   // calendar and stats without those views knowing about each other.
-  store.addEventListener('change', () => {
-    if (currentView !== 'timer') go();
-  });
+  store.addEventListener('change', () => go());
 
   go();
 
   tickClock();
-  setInterval(tickClock, 1000);
+  setInterval(() => {
+    tickClock();
+    timer.tick();
+  }, 1000);
+
+  timer.addEventListener('done', () => {
+    toast("Time's up ✦");
+    try {
+      if (store.state.settings.notificationsEnabled && Notification.permission === 'granted') {
+        new Notification('10 Minutes to Spare', {
+          body: "Time's up — how did you get on?",
+        });
+      }
+    } catch {
+      // Notifications are a nicety; never let them break the timer.
+    }
+  });
 
   registerServiceWorker(import.meta.env.BASE_URL);
 

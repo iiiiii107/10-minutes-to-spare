@@ -79,6 +79,26 @@ describe('generateInstances', () => {
   });
 });
 
+describe('paused tasks', () => {
+  it('schedules nothing while a task is paused', () => {
+    const paused = { ...task('t1', 7), pausedUntil: '2026-08-24' };
+    const out = generateInstances([paused], [], MONDAY, settings);
+    expect(out.every((i) => i.scheduledDate >= '2026-08-24')).toBe(true);
+  });
+
+  it('picks the task back up on the resume date', () => {
+    const paused = { ...task('t1', 7), pausedUntil: '2026-08-20' };
+    const out = generateInstances([paused], [], MONDAY, settings);
+    expect(out.some((i) => i.scheduledDate === '2026-08-20')).toBe(true);
+    expect(out.some((i) => i.scheduledDate === '2026-08-19')).toBe(false);
+  });
+
+  it('leaves an unpaused task alone', () => {
+    const out = generateInstances([{ ...task('t1', 7), pausedUntil: null }], [], MONDAY, settings);
+    expect(out.some((i) => i.scheduledDate === MONDAY)).toBe(true);
+  });
+});
+
 describe('rollForward', () => {
   it('moves incomplete tasks from past days to today', () => {
     const out = rollForward([instance('a', '2026-08-14')], MONDAY);

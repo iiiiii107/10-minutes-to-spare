@@ -71,6 +71,8 @@ export function generateInstances(tasks, instances, today, settings) {
         const date = addDays(weekStart, slot);
         // Don't create instances for days already gone.
         if (date < today) continue;
+        // Nothing is scheduled while a task is paused.
+        if (task.pausedUntil && date < task.pausedUntil) continue;
 
         const key = instanceKey(task.id, weekStart, slot);
         if (existing.has(key)) continue;

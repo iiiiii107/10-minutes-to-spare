@@ -1,6 +1,7 @@
 import { checkSvg, clear, confetti, el, penSvg, strikeSvg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { taskDialog } from './categories.js';
+import { pausedBanner } from './pause.js';
 import {
   dayList, monthGrid, monthLegend, periodTitle, weekGrid,
 } from './calendar.js';
@@ -232,6 +233,9 @@ export function renderToday(root) {
   // Zooming out to week or month swaps the page to ledger paper, so the
   // surface still tells you which mode you're in.
   document.body.dataset.view = mode === 'day' ? 'today' : 'calendar';
+
+  // Pausing lives at the top of the page, above everything else.
+  if (store.state.tasks.length) root.append(pausedBanner());
 
   const modes = el(
     'div',

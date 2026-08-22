@@ -157,6 +157,105 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- pausing -----------------------------------------------------------
+
+  /**
+   * Put tasks aside until a date — for a holiday, or a week the plants don't
+   * need watering. Paused tasks stop being scheduled and their outstanding
+   * plans are cleared, so nothing piles up while you're away. Completed
+   * instances are history and stay untouched.
+   * @param {string[]} taskIds
+   * @param {string|null} resumeOn 'YYYY-MM-DD', or null to un-pause
+   */
+  pauseTasks(taskIds, resumeOn) {
+    const ids = new Set(taskIds);
+    const today = todayISO();
+
+    for (const task of this.state.tasks) {
+      if (ids.has(task.id)) task.pausedUntil = resumeOn;
+    }
+
+    if (resumeOn) {
+      this.state.instances = this.state.instances.filter(
+        (i) =>
+          !ids.has(i.taskId) ||
+          i.status === 'complete' ||
+          i.scheduledDate < today,
+      );
+    }
+
+    this.refreshSchedule({ silent: true });
+    return this.persist();
+  }
+
+  resumeTasks(taskIds) {
+    return this.pauseTasks(taskIds, null);
+  }
+
+  /** Tasks currently on hold, given today's date. */
+  pausedTasks(today = todayISO()) {
+    return this.state.tasks.filter((t) => t.pausedUntil && t.pausedUntil > today);
+  }
+
+  // ---- ordering ----------------------------------------------------------
+
+  /** Move a task within its list. Order is the array's own order. */
+  moveTask(id, direction) {
+    const task = this.taskById(id);
+    if (!task) return this.persist();
+
+    const siblings = this.tasksInCategory(task.categoryId);
+    const at = siblings.indexOf(task);
+    const to = at + direction;
+    if (to < 0 || to >= siblings.length) return this.persist();
+
+    const a = this.state.tasks.indexOf(siblings[at]);
+    const b = this.state.tasks.indexOf(siblings[to]);
+    [this.state.tasks[a], this.state.tasks[b]] = [this.state.tasks[b], this.state.tasks[a]];
+    return this.persist();
+  }
+
+  moveCategory(id, direction) {
+    const at = this.state.categories.findIndex((c) => c.id === id);
+    const to = at + direction;
+    if (at < 0 || to < 0 || to >= this.state.categories.length) return this.persist();
+
+    const list = this.state.categories;
+    [list[at], list[to]] = [list[to], list[at]];
+    return this.persist();
+  }
+
+  // ---- stickers ----------------------------------------------------------
+
+  /** Stickers are yours to place; nothing is pinned to the pad automatically. */
+  stickersFor(date) {
+    return this.state.stickers?.[date] || [];
+  }
+
+  addSticker(date, sticker) {
+    if (!this.state.stickers) this.state.stickers = {};
+    if (!this.state.stickers[date]) this.state.stickers[date] = [];
+    this.state.stickers[date].push({
+      id: uid(),
+      x: 14,
+      y: 14 + this.state.stickers[date].length * 32,
+      ...sticker,
+    });
+    return this.persist();
+  }
+
+  moveSticker(date, id, x, y) {
+    const sticker = this.state.stickers?.[date]?.find((s) => s.id === id);
+    if (sticker) Object.assign(sticker, { x, y });
+    return this.persist();
+  }
+
+  removeSticker(date, id) {
+    if (!this.state.stickers?.[date]) return this.persist();
+    this.state.stickers[date] = this.state.stickers[date].filter((s) => s.id !== id);
+    return this.persist();
+  }
+
   // ---- completion -------------------------------------------------------
 
   setInstanceStatus(instanceId, status) {

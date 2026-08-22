@@ -251,6 +251,20 @@ function categoryCard(category) {
       el('span', { class: 'cat-title', text: category.name }),
       el('button', {
         class: 'icon-btn',
+        'aria-label': `Move ${category.name} earlier`,
+        title: 'Move earlier',
+        text: '↑',
+        onClick: () => store.moveCategory(category.id, -1),
+      }),
+      el('button', {
+        class: 'icon-btn',
+        'aria-label': `Move ${category.name} later`,
+        title: 'Move later',
+        text: '↓',
+        onClick: () => store.moveCategory(category.id, 1),
+      }),
+      el('button', {
+        class: 'icon-btn',
         'aria-label': `Edit ${category.name}`,
         text: '✎',
         onClick: () => categoryDialog(category),
@@ -271,7 +285,24 @@ function categoryCard(category) {
             onClick: () => taskDialog(category.id, task),
           }),
           el('div', { class: 'task-meta' }, [
+            task.pausedUntil && task.pausedUntil > new Date().toISOString().slice(0, 10)
+              ? el('span', { class: 'badge moved', text: 'paused' })
+              : null,
             el('span', { class: 'freq-badge', text: `${task.timesPerWeek}×/wk` }),
+            el('button', {
+              class: 'icon-btn',
+              'aria-label': `Move ${task.name} up`,
+              title: 'Move up',
+              text: '↑',
+              onClick: () => store.moveTask(task.id, -1),
+            }),
+            el('button', {
+              class: 'icon-btn',
+              'aria-label': `Move ${task.name} down`,
+              title: 'Move down',
+              text: '↓',
+              onClick: () => store.moveTask(task.id, 1),
+            }),
             el('button', {
               class: 'icon-btn',
               'aria-label': `Edit ${task.name}`,

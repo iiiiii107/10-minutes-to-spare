@@ -37,6 +37,7 @@ export const DEFAULT_STATE = {
   tasks: [],
   instances: [],
   notes: {},
+  stickers: {},
 };
 
 function clone(value) {
