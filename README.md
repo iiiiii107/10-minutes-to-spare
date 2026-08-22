@@ -98,11 +98,21 @@ Free tier throughout; no billing account needed. Takes about ten minutes.
    (`</>`)*. Give it a nickname, skip Firebase Hosting. Copy the
    `firebaseConfig` object it shows you.
 
-5. **Publish the rules.** In *Firestore Database → Rules*, replace what's there
-   with the contents of [`firestore.rules`](firestore.rules) and publish. This
-   is the part that makes each account private: an account can only reach
-   `users/{its own uid}`, so no one — including whoever owns the project — can
-   read anyone else's tasks.
+5. **Publish the rules.** This is the part that makes each account private:
+   an account can only reach `users/{its own uid}`, so no one — including
+   whoever owns the project — can read anyone else's tasks.
+
+   The Firebase console's *Rules* tab is read-only in recent versions and its
+   *Develop & Test* button leads to the Firebase Studio docs rather than an
+   editor. Two ways round it:
+
+   - Publish from here: `npx -y firebase-tools login` once, then
+     `npx -y firebase-tools deploy --only firestore:rules`. `firebase.json`
+     and `.firebaserc` already point at the project and at
+     [`firestore.rules`](firestore.rules), so the rules stay in version
+     control.
+   - Or paste them into the Google Cloud console, which still has a plain
+     editor: *console.cloud.google.com → Firestore → Rules*.
 
 6. **Allow the site to sign in.** *Authentication → Settings → Authorized
    domains* → add your Pages domain (e.g. `iiiiii107.github.io`). `localhost`
