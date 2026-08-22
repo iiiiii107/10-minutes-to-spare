@@ -71,10 +71,34 @@ async function firebase() {
 const account = new EventTarget();
 let currentUser = null;
 let watching = false;
+let lastError = null;
 
 /** The signed-in user, or null. Only ever id, name, email and photo. */
 export function currentAccount() {
   return currentUser;
+}
+
+/**
+ * Why sync isn't working, in words worth showing someone — a database that
+ * hasn't been created yet, rules that say no, a connection that isn't there.
+ * Null when nothing has gone wrong.
+ */
+export function syncError() {
+  return lastError;
+}
+
+function describe(err) {
+  const message = String(err?.message || err);
+  if (/has not been used in project|is disabled/i.test(message)) {
+    return 'The Firestore database has not been created yet — make it in the Firebase console, then reload.';
+  }
+  if (err?.code === 'permission-denied' || /permission/i.test(message)) {
+    return 'The database refused the write — check the security rules have been published.';
+  }
+  if (err?.code === 'unavailable' || /offline|network/i.test(message)) {
+    return 'No connection to the database. Your changes are saved here and will go up when it is back.';
+  }
+  return 'Sync could not start. Your tasks are safe in this browser.';
 }
 
 /** Fires 'change' whenever the signed-in account changes. */
@@ -112,9 +136,19 @@ export async function restoreSession() {
         email: user.email,
         photo: user.photoURL,
       };
-      await storage.use(createCloudStorage(user.uid));
+      try {
+        await storage.use(createCloudStorage(user.uid));
+        lastError = null;
+      } catch (err) {
+        // Signed in, but the database won't have us. Stay on this browser
+        // rather than losing the app — and say plainly what went wrong.
+        console.warn('Sync could not start.', err);
+        lastError = describe(err);
+        await storage.use(null);
+      }
     } else {
       currentUser = null;
+      lastError = null;
       await storage.use(null);
     }
     announce();

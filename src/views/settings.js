@@ -1,7 +1,7 @@
 import { clear, el, svg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { storage, STAT_KEYS } from '../lib/storage.js';
-import { currentAccount, signIn, signOutOfSync, syncConfigured } from '../lib/sync.js';
+import { currentAccount, signIn, signOutOfSync, syncConfigured, syncError } from '../lib/sync.js';
 import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 
 /* Settings. The principle here: the app counts everything regardless, and
@@ -210,7 +210,9 @@ function syncCard() {
     ]);
   }
 
-  return card('Sync', 'on — saving to your Google account', [
+  const problem = syncError();
+
+  return card('Sync', problem ? 'signed in, but not syncing' : 'on — saving to your Google account', [
     el('div', { class: 'row-between setting-row' }, [
       el('div', { class: 'account' }, [
         account.photo
@@ -230,10 +232,12 @@ function syncCard() {
         },
       }),
     ]),
-    el('p', { class: 'muted', style: 'margin-top:12px' }, [
-      'Changes save straight away and appear on your other devices within a second or two. ',
-      'It keeps working with no connection and catches up when you are back.',
-    ]),
+    problem
+      ? el('p', { class: 'sync-problem', style: 'margin-top:12px', text: problem })
+      : el('p', { class: 'muted', style: 'margin-top:12px' }, [
+          'Changes save straight away and appear on your other devices within a second or two. ',
+          'It keeps working with no connection and catches up when you are back.',
+        ]),
   ]);
 }
 

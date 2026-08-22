@@ -1011,3 +1011,7 @@ body[data-view="settings"]   { --accent: var(--sage); }
   display: grid; place-items: center;
   font-family: var(--font-display); font-size: 17px; color: var(--ink);
 }
+.sync-problem {
+  font-size: 13px; color: var(--rust);
+  border-left: 3px solid var(--rust); padding-left: 10px;
+}
