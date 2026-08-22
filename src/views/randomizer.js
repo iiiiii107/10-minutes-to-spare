@@ -48,13 +48,8 @@ export function renderRandomizer(root) {
     ]),
   );
 
+  // The wheel needs something to choose between; with less, just the heading.
   if (tasks.length < 2) {
-    card.append(
-      el('div', { class: 'empty' }, [
-        'Add a couple of tasks first.',
-        el('div', { class: 'hint', text: 'The wheel needs at least two to choose between.' }),
-      ]),
-    );
     root.append(card);
     return;
   }

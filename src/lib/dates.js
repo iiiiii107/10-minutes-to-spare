@@ -34,11 +34,23 @@ export function isWeekend(iso) {
   return d === 0 || d === 6;
 }
 
-/** Monday-based by default; set weekStartsMonday false for Sunday weeks. */
-export function startOfWeek(iso, weekStartsMonday = true) {
-  const dow = dayOfWeek(iso);
-  const offset = weekStartsMonday ? (dow === 0 ? 6 : dow - 1) : dow;
+/**
+ * @param {string} iso
+ * @param {number} weekStartsOn 0 = Sunday … 6 = Saturday. Defaults to Monday.
+ */
+export function startOfWeek(iso, weekStartsOn = 1) {
+  const offset = (dayOfWeek(iso) - weekStartsOn + 7) % 7;
   return addDays(iso, -offset);
+}
+
+/** Short day names rotated to begin on the configured start day. */
+export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+/** Distinct short labels, so Tuesday and Thursday can be told apart. */
+export const DAY_SHORT = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
+
+export function orderedDayNames(weekStartsOn = 1) {
+  return Array.from({ length: 7 }, (_, i) => DAY_NAMES[(weekStartsOn + i) % 7]);
 }
 
 export function daysBetween(fromIso, toIso) {

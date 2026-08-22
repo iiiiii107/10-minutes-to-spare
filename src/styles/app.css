@@ -133,7 +133,40 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
   text-align: center;
 }
 
-.mark { width: 34px; height: 34px; margin-bottom: 2px; }
+/* ---------- clock ----------
+   Two are rendered; CSS picks the one that suits the screen. On a computer
+   it's a desk clock in the corner of the panel. On a phone there is no spare
+   corner, so it becomes its own line beneath. */
+
+.clock {
+  display: flex; align-items: baseline; gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.clock-time {
+  font-family: var(--font-display); font-weight: 600;
+  color: var(--ink-deep); line-height: 1;
+}
+.clock-date { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+
+/* phone: the one after the panel */
+.masthead > .clock {
+  justify-content: center; flex-wrap: wrap;
+  padding: 10px 20px 0;
+}
+.masthead > .clock .clock-time { font-size: 19px; }
+
+/* computer: the one inside the panel */
+.masthead-panel > .clock { display: none; }
+
+@media (min-width: 720px) {
+  .masthead > .clock { display: none; }
+  .masthead-panel > .clock {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    position: absolute; top: 18px; right: 22px; z-index: 2;
+    text-align: right;
+  }
+  .masthead-panel > .clock .clock-time { font-size: 26px; }
+}
 
 .wordmark {
   font-family: var(--font-display);
@@ -141,11 +174,11 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
   font-weight: 600; color: var(--ink-blue);
   letter-spacing: -1px; line-height: 1;
 }
-/* The middle word carries the italic, the way the reference wordmarks
-   split their two halves. */
+/* "to spare" carries the italic and its own colour — the two-tone split the
+   reference wordmarks use. */
 .wordmark em {
   font-style: italic; font-weight: 500;
-  color: var(--ink-deep);
+  color: var(--rust);
 }
 .wordmark-sub {
   font-family: var(--font-display); font-style: italic; font-weight: 500;
@@ -202,19 +235,10 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
    or not it's current — so making one active never shifts the rhythm. */
 .nav-tab {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; padding: 8px 4px; min-width: 0;
-  text-decoration: none; border-radius: 10px;
-  font-weight: 700; font-size: 11px; color: var(--muted);
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
-  transition: color .18s, background .18s;
+  gap: 3px; padding: 9px 4px; min-width: 0;
+  border-radius: 10px; font-size: 11px;
 }
 .nav-icon { font-size: 17px; line-height: 1; }
-.nav-tab:hover { color: var(--ink); }
-.nav-tab[aria-current="page"] {
-  color: var(--btn-text);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-face) 88%, white), var(--btn-face) 55%);
-  box-shadow: 0 2px 0 var(--btn-edge), inset 0 1px 0 rgb(255 255 255 / .28);
-}
 
 @media (min-width: 720px) {
   .nav {
@@ -223,65 +247,73 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
     padding: 0 20px;
     background: none; backdrop-filter: none; border-top: none; box-shadow: none;
   }
-  .nav-tab {
-    flex-direction: row; gap: 8px;
-    font-size: 13px; padding: 11px 18px; border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--paper) 82%, transparent);
-    box-shadow: 0 2px 0 var(--hair-strong), inset 0 1px 0 rgb(255 255 255 / .4);
-  }
+  .nav-tab { flex-direction: row; gap: 8px; font-size: 13px; padding: 11px 18px; }
   .nav-icon { font-size: 15px; }
 }
 
-/* ---------- the four Other views ---------- */
 
-.other-switch {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 6px; margin-bottom: 18px;
-}
-.other-tab {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; padding: 12px 4px;
-  text-decoration: none; text-align: center;
-  border-radius: var(--radius-sm);
-  font-weight: 700; font-size: 11.5px; color: var(--muted);
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
-  box-shadow: 0 2px 0 var(--hair-strong), inset 0 1px 0 rgb(255 255 255 / .4);
-  transition: color .18s, background .18s;
-}
-.other-tab:hover { color: var(--ink); }
-.other-tab[aria-selected="true"] {
-  color: var(--btn-text);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-face) 88%, white), var(--btn-face) 55%);
-  box-shadow: 0 3px 0 var(--btn-edge), 0 6px 12px -5px var(--shadow-2), inset 0 1px 0 rgb(255 255 255 / .28);
-}
-.other-icon { font-size: 17px; line-height: 1; }
+/* ---------- pressable controls ----------
+   One depth system for everything clickable: a 3px solid edge in the
+   control's own colour, one ambient shadow, one top highlight, and the same
+   3px travel when pressed. Variants change colour, never depth. */
 
-/* ---------- buttons ---------- */
+.btn, .seg-item, .nav-tab, .preset, .cal-mode {
+  --edge: var(--hair-strong);
+  --face: color-mix(in srgb, var(--paper) 86%, transparent);
+  --face-text: var(--muted);
 
-.btn {
-  font-weight: 700; font-size: 13.5px;
-  border: none; border-radius: 9px; padding: 11px 22px; cursor: pointer;
   position: relative; top: 0;
-  transition: top .08s ease, box-shadow .08s ease;
+  border: none; cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--face) 92%, white), var(--face));
+  color: var(--face-text);
+  box-shadow:
+    0 3px 0 var(--edge),
+    0 6px 12px -6px var(--shadow-2),
+    inset 0 1px 0 rgb(255 255 255 / .4);
+  transition: top .08s ease, box-shadow .08s ease, background .18s, color .18s;
 }
-.btn-primary {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-face) 88%, white), var(--btn-face) 55%);
-  color: var(--btn-text);
-  box-shadow: 0 3px 0 var(--btn-edge), 0 6px 12px -4px var(--shadow-2), inset 0 1px 0 rgb(255 255 255 / .28);
+
+.btn:active, .seg-item:active, .nav-tab:active, .preset:active, .cal-mode:active {
+  top: 3px;
+  box-shadow: 0 0 0 var(--edge), 0 2px 5px -3px var(--shadow-2);
 }
-.btn-secondary {
-  background: linear-gradient(180deg, var(--paper), color-mix(in srgb, var(--paper) 92%, var(--ink)));
-  color: var(--ink-blue);
-  box-shadow: 0 3px 0 var(--hair-strong), 0 6px 12px -6px var(--shadow-2), inset 0 1px 0 rgb(255 255 255 / .5);
-}
-.btn-ghost {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--butter) 90%, white), var(--butter) 60%);
-  color: #20395C;
-  box-shadow: 0 3px 0 var(--butter-deep), 0 6px 12px -5px var(--shadow-2), inset 0 1px 0 rgb(255 255 255 / .45);
-}
-.btn:active { top: 3px; box-shadow: 0 0 0 var(--btn-edge), 0 2px 5px -3px var(--shadow-2); }
+
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 7px; }
+
+/* Variants: colour only. */
+.btn-primary,
+.seg-item[aria-selected="true"],
+.nav-tab[aria-current="page"],
+.preset[aria-pressed="true"],
+.cal-mode[aria-pressed="true"] {
+  --face: var(--btn-face);
+  --edge: var(--btn-edge);
+  --face-text: var(--btn-text);
+}
+.btn-secondary { --face: var(--paper); --face-text: var(--ink-blue); }
+.btn-ghost { --face: var(--butter); --edge: var(--butter-deep); --face-text: #20395C; }
+
+.btn { font-size: 13.5px; border-radius: 9px; padding: 11px 22px; }
+.btn-sm { padding: 8px 15px; font-size: 12px; border-radius: 8px; }
+
+.btn:hover, .seg-item:hover, .nav-tab:hover, .preset:hover, .cal-mode:hover {
+  color: var(--face-text);
+}
+.seg-item:not([aria-selected="true"]):hover,
+.nav-tab:not([aria-current="page"]):hover { color: var(--ink); }
+
+/* ---------- segmented control ----------
+   Used for day/week/month, the Other sections, frequency, and settings, so
+   every "pick one of these" reads the same way. */
+.seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.seg-wide { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
+.seg-item {
+  display: flex; align-items: center; justify-content: center;
+  padding: 9px 14px; border-radius: 8px;
+  font-size: 12.5px; min-width: 0; text-align: center;
+}
 
 .icon-btn {
   border: none; background: transparent; cursor: pointer;
@@ -431,13 +463,10 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 /* ---------- calendar ---------- */
 
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.cal-head h2 { font-size: 22px; }
 .cal-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
 .cal-modes { display: flex; gap: 5px; }
-.cal-mode {
-  font-size: 11.5px; font-weight: 700; padding: 6px 13px; border-radius: 7px;
-  border: none; cursor: pointer; background: var(--hair); color: var(--muted);
-}
-.cal-mode[aria-pressed="true"] { background: var(--ink-blue); color: var(--paper); }
+.cal-mode { font-size: 11.5px; padding: 8px 14px; border-radius: 8px; }
 
 .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .dow {
@@ -509,11 +538,7 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .timer-face .t { font-family: var(--font-display); font-size: clamp(28px, 8vw, 38px); font-weight: 600; color: var(--ink-deep); font-variant-numeric: tabular-nums; }
 .timer-face .l { font-size: 9.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .preset-row { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; }
-.preset {
-  font-size: 11.5px; font-weight: 700; padding: 7px 14px; border-radius: 7px;
-  border: none; cursor: pointer; background: var(--hair); color: var(--muted);
-}
-.preset[aria-pressed="true"] { background: var(--ink-blue); color: var(--paper); }
+.preset { font-size: 11.5px; padding: 8px 15px; border-radius: 8px; }
 
 .notepad {
   padding: 16px; border-radius: var(--radius-sm); position: relative;
@@ -616,6 +641,32 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .switch[aria-checked="true"] { background: var(--ink-blue); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
 
+/* ---------- settings ---------- */
+
+.setting-row { padding: 12px 0; border-top: 1px solid var(--hair); }
+.setting-row:first-of-type { border-top: none; }
+.setting-row .muted { max-width: 44ch; }
+
+.stepper { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.stepper-value {
+  font-weight: 700; font-size: 13.5px; min-width: 66px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-color-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
+}
+.month-color { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.month-color input[type="color"] {
+  width: 38px; height: 30px; border: 1px solid var(--hair-strong); border-radius: 7px;
+  background: none; padding: 2px; cursor: pointer; flex-shrink: 0;
+}
+
+.stat-caption {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+
 .done-summary {
   margin-top: 14px; border-top: 1px dashed var(--hair-strong); padding-top: 12px;
 }
@@ -631,7 +682,7 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
   .card { padding: 16px; }
   .day-cell { min-height: 52px; padding: 5px 2px; }
   .cal-head { gap: 8px; }
-  .other-tab { font-size: 10.5px; padding: 10px 2px; }
+  .seg-item { padding: 9px 6px; font-size: 11.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

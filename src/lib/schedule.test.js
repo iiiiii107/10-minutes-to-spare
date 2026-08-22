@@ -15,7 +15,7 @@ import { addDays, isWeekend } from './dates.js';
 const MONDAY = '2026-08-17';
 const SATURDAY = '2026-08-22';
 
-const settings = { weekStartsMonday: true };
+const settings = { weekStartsOn: 1 };
 
 function task(id, timesPerWeek) {
   return { id, name: id, timesPerWeek, categoryId: 'c1', active: true };
@@ -229,8 +229,8 @@ describe('reconcile', () => {
   it('never lists the same task twice on one day', () => {
     // A week-start change shifts the key boundary and can double a task up.
     const tasks = [task('t1', 7)];
-    const monday = reconcile(tasks, [], MONDAY, { weekStartsMonday: true });
-    const both = reconcile(tasks, monday.instances, MONDAY, { weekStartsMonday: false });
+    const monday = reconcile(tasks, [], MONDAY, { weekStartsOn: 1 });
+    const both = reconcile(tasks, monday.instances, MONDAY, { weekStartsOn: 0 });
 
     const today = instancesForDate(both.instances, MONDAY);
     expect(today).toHaveLength(1);

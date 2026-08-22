@@ -1,14 +1,25 @@
 import { clear, el, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
-import { storage } from '../lib/storage.js';
+import { storage, STAT_KEYS } from '../lib/storage.js';
+import { DAY_SHORT } from '../lib/dates.js';
 
-/* Week start, month colours, notifications, theme, and a manual backup route
-   that works today whether or not cloud sync is switched on. */
+/* Settings. The principle here: the app counts everything regardless, and
+   these choices only decide what's shown and how the schedule behaves. */
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+function card(title, sub, children) {
+  return el('div', { class: 'card paper' }, [
+    el('div', { class: 'section-head' }, [
+      el('h2', { text: title }),
+      sub ? el('span', { class: 'sub', text: sub }) : null,
+    ]),
+    ...[].concat(children),
+  ]);
+}
 
 function toggleRow(label, checked, onChange, description) {
   const button = el('button', {
@@ -23,12 +34,54 @@ function toggleRow(label, checked, onChange, description) {
     },
   });
 
-  return el('div', { class: 'row-between', style: 'padding:10px 0' }, [
+  return el('div', { class: 'row-between setting-row' }, [
     el('div', {}, [
       el('div', { style: 'font-weight:700; font-size:14px', text: label }),
       description ? el('div', { class: 'muted', text: description }) : null,
     ]),
     button,
+  ]);
+}
+
+/** A segmented control: options is [{value, label, aria}]. */
+function segmented(options, value, onPick, { wide = false } = {}) {
+  const wrap = el('div', { class: `seg${wide ? ' seg-wide' : ''}` });
+  for (const option of options) {
+    wrap.append(
+      el('button', {
+        type: 'button',
+        class: 'seg-item',
+        text: option.label,
+        'aria-label': option.aria || option.label,
+        'aria-selected': String(option.value === value),
+        onClick: () => {
+          for (const node of wrap.children) node.setAttribute('aria-selected', 'false');
+          wrap.children[options.indexOf(option)].setAttribute('aria-selected', 'true');
+          onPick(option.value);
+        },
+      }),
+    );
+  }
+  return wrap;
+}
+
+function stepper(value, { min, max, suffix, onChange }) {
+  const readout = el('span', {
+    class: 'stepper-value',
+    text: `${value}${suffix ? ` ${suffix}` : ''}`,
+  });
+  let current = value;
+
+  const bump = (delta) => {
+    current = Math.max(min, Math.min(max, current + delta));
+    readout.textContent = `${current}${suffix ? ` ${suffix}` : ''}`;
+    onChange(current);
+  };
+
+  return el('div', { class: 'stepper' }, [
+    el('button', { class: 'btn btn-secondary btn-sm', text: '−', 'aria-label': 'Less', onClick: () => bump(-1) }),
+    readout,
+    el('button', { class: 'btn btn-secondary btn-sm', text: '+', 'aria-label': 'More', onClick: () => bump(1) }),
   ]);
 }
 
@@ -42,30 +95,26 @@ async function requestNotifications() {
     toast('Notifications are blocked in your browser settings');
     return false;
   }
-  const result = await Notification.requestPermission();
-  return result === 'granted';
+  return (await Notification.requestPermission()) === 'granted';
 }
 
 function monthColorGrid() {
-  const grid = el('div', { class: 'grid-2', style: 'gap:10px' });
+  const grid = el('div', { class: 'month-color-grid' });
 
   MONTHS.forEach((name, index) => {
     const month = index + 1;
-    const input = el('input', {
-      type: 'color',
-      value: store.state.settings.monthColors[month],
-      'aria-label': `${name} colour`,
-      style: 'width:38px; height:30px; border:none; background:none; padding:0; cursor:pointer',
-      onInput: (event) => {
-        store.state.settings.monthColors[month] = event.target.value;
-      },
-      onChange: () => store.updateSettings({}),
-    });
-
     grid.append(
-      el('div', { class: 'row', style: 'gap:10px' }, [
-        input,
-        el('span', { style: 'font-size:13px; font-weight:600', text: name }),
+      el('label', { class: 'month-color' }, [
+        el('input', {
+          type: 'color',
+          value: store.state.settings.monthColors[month],
+          'aria-label': `${name} colour`,
+          onInput: (event) => {
+            store.state.settings.monthColors[month] = event.target.value;
+          },
+          onChange: () => store.updateSettings({}),
+        }),
+        el('span', { text: name }),
       ]),
     );
   });
@@ -115,18 +164,84 @@ export function renderSettings(root) {
   clear(root);
   const { settings } = store.state;
 
-  const general = el('div', { class: 'card paper' }, [
-    el('div', { class: 'section-head' }, [el('h2', { text: 'Settings' })]),
+  // ---- week & schedule ----
+  const week = card('Week', 'how your week is shaped', [
+    el('div', { class: 'field' }, [
+      el('label', { text: 'Week starts on' }),
+      segmented(
+        DAY_SHORT.map((label, index) => ({
+          value: index,
+          label,
+          aria: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index],
+        })),
+        settings.weekStartsOn ?? 1,
+        (value) => store.updateSettings({ weekStartsOn: value }),
+        { wide: true },
+      ),
+    ]),
 
+    el('div', { class: 'row-between setting-row' }, [
+      el('div', {}, [
+        el('div', { style: 'font-weight:700; font-size:14px', text: 'Most tasks on a weekday' }),
+        el('div', { class: 'muted', text: 'Anything over this moves to the next day. Weekends are never capped.' }),
+      ]),
+      stepper(settings.weekdayCap ?? 5, {
+        min: 1,
+        max: 12,
+        onChange: (value) => store.updateSettings({ weekdayCap: value }),
+      }),
+    ]),
+  ]);
+
+  // ---- stats ----
+  const statRows = STAT_KEYS.map((stat) =>
     toggleRow(
-      'Week starts on Monday',
-      settings.weekStartsMonday !== false,
-      (value) => store.updateSettings({ weekStartsMonday: value }),
-      'Turn off for weeks that start on Sunday.',
+      stat.label,
+      settings.statsVisible?.[stat.id] !== false,
+      (value) =>
+        store.updateSettings({
+          statsVisible: { ...settings.statsVisible, [stat.id]: value },
+        }),
     ),
+  );
 
+  const stats = card('Stats', 'everything is still counted — this is just what you see', [
+    ...statRows,
+    el('div', { class: 'row-between setting-row' }, [
+      el('div', {}, [
+        el('div', { style: 'font-weight:700; font-size:14px', text: 'Minutes per task' }),
+        el('div', { class: 'muted', text: 'Used to work out the time you have reclaimed.' }),
+      ]),
+      stepper(settings.minutesPerTask ?? 10, {
+        min: 1,
+        max: 60,
+        suffix: 'min',
+        onChange: (value) => store.updateSettings({ minutesPerTask: value }),
+      }),
+    ]),
+  ]);
+
+  // ---- appearance ----
+  const appearance = card('Appearance', 'light, dark, or follow your device', [
+    segmented(
+      [
+        { value: 'system', label: 'System' },
+        { value: 'light', label: 'Light' },
+        { value: 'dark', label: 'Dark' },
+      ],
+      settings.theme || 'system',
+      (value) => {
+        store.updateSettings({ theme: value });
+        applyTheme(value);
+      },
+      { wide: true },
+    ),
+  ]);
+
+  // ---- reminders ----
+  const reminders = card('Reminders', null, [
     toggleRow(
-      'Reminders',
+      'Notifications',
       settings.notificationsEnabled === true,
       async (value) => {
         if (value) {
@@ -137,46 +252,13 @@ export function renderSettings(root) {
           store.updateSettings({ notificationsEnabled: false });
         }
       },
-      'A nudge when the timer ends, and when tasks are waiting.',
+      'A nudge when the timer runs out.',
     ),
   ]);
 
-  const theme = el('div', { class: 'card paper' }, [
-    el('div', { class: 'section-head' }, [
-      el('h2', { text: 'Appearance' }),
-      el('span', { class: 'sub', text: 'light, dark, or follow your device' }),
-    ]),
-    el(
-      'div',
-      { class: 'preset-row', style: 'justify-content:flex-start' },
-      ['system', 'light', 'dark'].map((option) =>
-        el('button', {
-          class: 'preset',
-          text: option,
-          'aria-pressed': String((settings.theme || 'system') === option),
-          onClick: () => {
-            store.updateSettings({ theme: option });
-            applyTheme(option);
-            renderSettings(root);
-          },
-        }),
-      ),
-    ),
-  ]);
+  const months = card('Month colours', 'tints the calendar month by month', [monthColorGrid()]);
 
-  const months = el('div', { class: 'card paper' }, [
-    el('div', { class: 'section-head' }, [
-      el('h2', { text: 'Month colours' }),
-      el('span', { class: 'sub', text: 'tints the calendar month by month' }),
-    ]),
-    monthColorGrid(),
-  ]);
-
-  const data = el('div', { class: 'card paper' }, [
-    el('div', { class: 'section-head' }, [
-      el('h2', { text: 'Your data' }),
-      el('span', { class: 'sub', text: 'saved on this device' }),
-    ]),
+  const data = card('Your data', 'saved on this device', [
     el('p', { class: 'muted', style: 'margin-bottom:14px' }, [
       'Everything lives in this browser for now. Export a backup before clearing your browser data, or to move it to another device by hand.',
     ]),
@@ -186,7 +268,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(general, theme, months, data);
+  root.append(week, stats, appearance, reminders, months, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */

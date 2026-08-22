@@ -174,22 +174,8 @@ function todayBody(card) {
   const date = todayISO();
   const pending = instancesForDate(store.state.instances, date);
 
-  if (!store.state.tasks.length) {
-    card.append(
-      el('div', { class: 'empty' }, [
-        'Nothing set up yet.',
-        el('div', { class: 'hint', text: 'Add a list and a few small tasks to get started.' }),
-        el('div', { style: 'margin-top:16px' }, [
-          el('button', {
-            class: 'btn btn-primary',
-            text: 'Go to lists',
-            onClick: () => { location.hash = '#/lists'; },
-          }),
-        ]),
-      ]),
-    );
-    return;
-  }
+  // Nothing to do means nothing on screen — the heading alone says it.
+  if (!store.state.tasks.length) return;
 
   if (!pending.length) {
     card.append(el('div', { class: 'empty' }, ['All clear for today ✦']));
@@ -249,12 +235,13 @@ export function renderToday(root) {
 
   const modes = el(
     'div',
-    { class: 'cal-modes' },
+    { class: 'seg seg-wide', role: 'tablist', 'aria-label': 'Zoom' },
     ['day', 'week', 'month'].map((m) =>
       el('button', {
-        class: 'cal-mode',
+        class: 'seg-item',
+        role: 'tab',
         text: m,
-        'aria-pressed': String(mode === m),
+        'aria-selected': String(mode === m),
         onClick: () => {
           mode = m;
           if (m === 'day') { selected = today; anchor = today; }
@@ -264,29 +251,27 @@ export function renderToday(root) {
     ),
   );
 
-  // On today itself the heading is just "Today"; elsewhere it's the date,
-  // with arrows to step through.
+  // Title on the left, the one action on the right, and the zoom control on
+  // its own full-width row underneath — so nothing wraps awkwardly on a phone.
   card.append(
     el('div', { class: 'cal-head' }, [
       // The masthead already carries today's date, so the heading doesn't.
       isToday
-        ? el('div', { class: 'row' }, [el('h2', { text: 'Today' })])
+        ? el('h2', { text: 'Today' })
         : el('div', { class: 'row' }, [
             el('button', { class: 'icon-btn', text: '‹', 'aria-label': 'Previous', onClick: () => step(-1) }),
             el('span', { class: 'cal-title', text: periodTitle(mode, anchor, selected) }),
             el('button', { class: 'icon-btn', text: '›', 'aria-label': 'Next', onClick: () => step(1) }),
           ]),
-      el('div', { class: 'row', style: 'gap:8px' }, [
-        isToday && store.state.categories.length
-          ? el('button', {
-              class: 'btn btn-primary btn-sm',
-              text: '+ Add task',
-              onClick: () => taskDialog(null, undefined, true),
-            })
-          : null,
-        modes,
-      ]),
+      isToday && store.state.categories.length
+        ? el('button', {
+            class: 'btn btn-primary btn-sm',
+            text: '+ Add task',
+            onClick: () => taskDialog(null, undefined, true),
+          })
+        : null,
     ]),
+    el('div', { style: 'margin-bottom:16px' }, [modes]),
   );
 
   if (mode === 'month') {

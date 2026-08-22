@@ -149,22 +149,32 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
         ),
       );
 
+  // A row of seven tappable counts beats a slider here: the whole range is
+  // visible, every value is one tap, and it works the same on a touchscreen.
   const freqValue = el('span', {
     class: 'muted',
+    style: 'margin-top:6px; display:block',
     text: describeFrequency(draft.timesPerWeek),
   });
-  const freqInput = el('input', {
-    class: 'input',
-    type: 'range',
-    min: '1',
-    max: '7',
-    step: '1',
-    value: String(draft.timesPerWeek),
-    onInput: (event) => {
-      draft.timesPerWeek = Number(event.target.value);
-      freqValue.textContent = describeFrequency(draft.timesPerWeek);
-    },
-  });
+  const freqInput = el('div', { class: 'seg seg-wide' });
+  for (let n = 1; n <= 7; n += 1) {
+    freqInput.append(
+      el('button', {
+        type: 'button',
+        class: 'seg-item',
+        text: String(n),
+        'aria-label': `${n} times a week`,
+        'aria-selected': String(n === draft.timesPerWeek),
+        onClick: () => {
+          draft.timesPerWeek = n;
+          for (const node of freqInput.children) {
+            node.setAttribute('aria-selected', String(Number(node.textContent) === n));
+          }
+          freqValue.textContent = describeFrequency(n);
+        },
+      }),
+    );
+  }
 
   const body = el('div', {}, [
     el('div', { class: 'field' }, [el('label', { text: 'Task' }), nameInput]),
@@ -304,20 +314,8 @@ export function renderCategories(root) {
     ]),
   );
 
-  if (!store.state.categories.length) {
-    root.append(
-      el('div', { class: 'card paper' }, [
-        el('div', { class: 'empty' }, [
-          'No lists yet.',
-          el('div', {
-            class: 'hint',
-            text: 'Start with something like Home, Desk, or Admin — then add the small jobs that live there.',
-          }),
-        ]),
-      ]),
-    );
-    return;
-  }
+  // No lists means nothing below the heading; the button is the only prompt.
+  if (!store.state.categories.length) return;
 
   const grid = el('div', { class: 'grid-2' });
   for (const category of store.state.categories) {

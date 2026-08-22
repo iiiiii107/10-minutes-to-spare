@@ -54,12 +54,6 @@ export function renderStats(root) {
   );
 
   if (total === 0) {
-    card.append(
-      el('div', { class: 'empty' }, [
-        'Nothing finished yet.',
-        el('div', { class: 'hint', text: 'Tick one small thing off and this page starts filling in.' }),
-      ]),
-    );
     root.append(card);
     return;
   }
@@ -67,38 +61,51 @@ export function renderStats(root) {
   const streak = currentStreak(instances);
   const best = longestStreak(instances);
   const busiest = busiestCategory(instances, tasks, categories);
+  const minutes = store.state.settings.minutesPerTask ?? 10;
 
-  card.append(
-    el('div', { class: 'stat-grid' }, [
-      stat(streak, 'day streak', streak >= best && streak > 1 ? 'your best yet' : null),
-      stat(best, 'longest streak'),
-      stat(completedThisMonth(instances), 'this month'),
-      stat(total, 'all time'),
-    ]),
-  );
+  // Everything is always counted; these settings only decide what's shown.
+  const shown = (id) => store.state.settings.statsVisible?.[id] !== false;
 
-  card.append(
-    el('div', { style: 'margin-top:20px' }, [
-      el('div', { class: 'k', style: 'font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em', text: 'Last 30 days' }),
-      sparkline(dailyHistory(instances, 30)),
-    ]),
-  );
+  const tiles = [
+    shown('streak')
+      ? stat(streak, 'day streak', streak >= best && streak > 1 ? 'your best yet' : null)
+      : null,
+    shown('longestStreak') ? stat(best, 'longest streak') : null,
+    shown('thisMonth') ? stat(completedThisMonth(instances), 'this month') : null,
+    shown('allTime') ? stat(total, 'all time') : null,
+  ].filter(Boolean);
 
-  const extras = el('div', { class: 'stat-grid', style: 'margin-top:20px' }, [
-    stat(
-      formatDuration(minutesReclaimed(instances)),
-      'time reclaimed',
-      'at ten minutes a task',
-    ),
-    busiest?.category
+  if (tiles.length) card.append(el('div', { class: 'stat-grid' }, tiles));
+
+  if (shown('history')) {
+    card.append(
+      el('div', { style: 'margin-top:20px' }, [
+        el('div', { class: 'stat-caption', text: 'Last 30 days' }),
+        sparkline(dailyHistory(instances, 30)),
+      ]),
+    );
+  }
+
+  const extras = [
+    shown('timeReclaimed')
+      ? stat(
+          formatDuration(minutesReclaimed(instances, minutes)),
+          'time reclaimed',
+          `at ${minutes} minute${minutes === 1 ? '' : 's'} a task`,
+        )
+      : null,
+    shown('busiest') && busiest?.category
       ? stat(
           `${busiest.category.emoji}`,
           busiest.category.name,
           `${busiest.count} done — your busiest`,
         )
       : null,
-  ]);
-  card.append(extras);
+  ].filter(Boolean);
+
+  if (extras.length) {
+    card.append(el('div', { class: 'stat-grid', style: 'margin-top:20px' }, extras));
+  }
 
   root.append(card);
 }

@@ -3,8 +3,8 @@ import { addDays, todayISO } from './dates.js';
 /* Stats are derived from completed instances only — nothing extra is stored,
    so the numbers can never drift out of sync with the task history. */
 
-/** Minutes assumed per task, for the "time reclaimed" figure. */
-const MINUTES_PER_TASK = 10;
+/** Default minutes per task for the "time reclaimed" figure; overridable. */
+export const DEFAULT_MINUTES_PER_TASK = 10;
 
 function completedDates(instances) {
   const set = new Set();
@@ -72,8 +72,8 @@ export function dailyHistory(instances, days = 30, today = todayISO()) {
   return out;
 }
 
-export function minutesReclaimed(instances) {
-  return completedTotal(instances) * MINUTES_PER_TASK;
+export function minutesReclaimed(instances, minutesPerTask = DEFAULT_MINUTES_PER_TASK) {
+  return completedTotal(instances) * minutesPerTask;
 }
 
 export function formatDuration(minutes) {

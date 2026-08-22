@@ -1,50 +1,36 @@
-import { clear, el } from '../lib/dom.js';
+import { el } from '../lib/dom.js';
 
-/* The "Other" section: a row of four evenly spaced buttons across the top,
-   with whichever one is chosen rendered underneath. Keeps the bottom bar down
-   to three tabs without burying anything more than one tap deep. */
+/* The four screens behind the Other tab.
+
+   These used to sit in a second full-width bar under the main nav, which read
+   as two competing rows of navigation. It's now one compact segmented control
+   — the same component the day / week / month switch uses — so it reads as
+   part of the page rather than a second navbar. */
 
 export const OTHER_ROUTES = ['randomizer', 'timer', 'stats', 'settings'];
 
+/** Tapping "Other" lands here rather than on a menu asking you to choose. */
+export const OTHER_DEFAULT = 'randomizer';
+
 const LABELS = {
-  randomizer: { text: 'Randomizer', icon: '🎯' },
-  timer: { text: 'Timer', icon: '⏱️' },
-  stats: { text: 'Stats', icon: '📈' },
-  settings: { text: 'Settings', icon: '⚙️' },
+  randomizer: 'Randomizer',
+  timer: 'Timer',
+  stats: 'Stats',
+  settings: 'Settings',
 };
 
-/** The four-button switcher, shown above every Other sub-view. */
 export function otherSwitcher(activeId) {
   return el(
     'div',
-    { class: 'other-switch', role: 'tablist', 'aria-label': 'More views' },
+    { class: 'seg seg-wide', role: 'tablist', 'aria-label': 'More views' },
     OTHER_ROUTES.map((id) =>
       el('a', {
-        class: 'other-tab',
+        class: 'seg-item',
         href: `#/${id}`,
         role: 'tab',
+        text: LABELS[id],
         'aria-selected': String(id === activeId),
-      }, [
-        el('span', { class: 'other-icon', text: LABELS[id].icon, 'aria-hidden': 'true' }),
-        el('span', { text: LABELS[id].text }),
-      ]),
+      }),
     ),
-  );
-}
-
-/** The bare Other tab, before a sub-view is picked. */
-export function renderOther(root) {
-  clear(root);
-  root.append(
-    otherSwitcher(null),
-    el('div', { class: 'card paper' }, [
-      el('div', { class: 'empty' }, [
-        'Pick one above.',
-        el('div', {
-          class: 'hint',
-          text: 'The wheel, the timer, your stats, and everything you can change.',
-        }),
-      ]),
-    ]),
   );
 }

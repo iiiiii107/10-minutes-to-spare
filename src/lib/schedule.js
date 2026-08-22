@@ -55,11 +55,10 @@ function instanceKey(taskId, weekStart, slot) {
  * affects weeks not yet generated.
  */
 export function generateInstances(tasks, instances, today, settings) {
-  const weekStartsMonday = settings.weekStartsMonday !== false;
   const existing = new Set(instances.map((i) => i.key));
   const created = [];
 
-  const firstWeek = startOfWeek(today, weekStartsMonday);
+  const firstWeek = startOfWeek(today, settings.weekStartsOn ?? 1);
   const weeksToCover = Math.ceil(WINDOW_DAYS / 7) + 1;
 
   for (const task of tasks) {

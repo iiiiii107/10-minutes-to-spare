@@ -2,18 +2,16 @@ import { el } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { completedOnDate, instancesForDate, wasMoved } from '../lib/schedule.js';
 import {
-  addDays, formatLong, fromISO, isWeekend, monthOf, startOfWeek, todayISO,
+  addDays, formatLong, fromISO, isWeekend, monthOf, orderedDayNames,
+  startOfWeek, todayISO,
 } from '../lib/dates.js';
 
 /* Calendar grids, built as detachable pieces rather than a whole screen.
    The Today view owns the mode switch and mounts whichever of these it needs,
    so day / week / month are one place in the UI instead of two. */
 
-const DOW_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DOW_SUN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-export function weekStartsMonday() {
-  return store.state.settings.weekStartsMonday !== false;
+export function weekStartsOn() {
+  return store.state.settings.weekStartsOn ?? 1;
 }
 
 function monthTint(iso) {
@@ -56,13 +54,14 @@ function dayCell(date, selected, onSelect, { muted = false } = {}) {
 }
 
 function dowHeaders() {
-  const names = weekStartsMonday() ? DOW_MON : DOW_SUN;
-  return names.map((name) => el('div', { class: 'dow', text: name }));
+  return orderedDayNames(weekStartsOn()).map((name) =>
+    el('div', { class: 'dow', text: name }),
+  );
 }
 
 export function monthGrid(anchor, selected, onSelect) {
   const first = `${anchor.slice(0, 7)}-01`;
-  const gridStart = startOfWeek(first, weekStartsMonday());
+  const gridStart = startOfWeek(first, weekStartsOn());
   const grid = el('div', { class: 'month-grid' });
 
   grid.append(...dowHeaders());
@@ -76,8 +75,8 @@ export function monthGrid(anchor, selected, onSelect) {
 }
 
 export function weekGrid(anchor, selected, onSelect) {
-  const start = startOfWeek(anchor, weekStartsMonday());
-  const names = weekStartsMonday() ? DOW_MON : DOW_SUN;
+  const start = startOfWeek(anchor, weekStartsOn());
+  const names = orderedDayNames(weekStartsOn());
   const strip = el('div', { class: 'week-strip' });
 
   for (let i = 0; i < 7; i += 1) {
@@ -135,7 +134,7 @@ export function periodTitle(mode, anchor, selected) {
   }
   if (mode === 'day') return formatLong(selected);
 
-  const start = startOfWeek(anchor, weekStartsMonday());
+  const start = startOfWeek(anchor, weekStartsOn());
   const end = addDays(start, 6);
   const fmt = (iso) =>
     fromISO(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });

@@ -1,5 +1,5 @@
 import './styles/app.css';
-import { clear, el, svg } from './lib/dom.js';
+import { clear, el } from './lib/dom.js';
 import { store } from './lib/store.js';
 import { completedOnDate } from './lib/schedule.js';
 import { currentStreak } from './lib/stats.js';
@@ -10,7 +10,7 @@ import { renderRandomizer } from './views/randomizer.js';
 import { renderTimer, teardownTimer } from './views/timer.js';
 import { renderStats } from './views/stats.js';
 import { applyTheme, renderSettings } from './views/settings.js';
-import { OTHER_ROUTES, otherSwitcher, renderOther } from './views/other.js';
+import { OTHER_DEFAULT, OTHER_ROUTES, otherSwitcher } from './views/other.js';
 
 /* Hash routing keeps GitHub Pages happy: every URL is really index.html, so
    there are no 404s on refresh and no rewrite rules to configure.
@@ -20,15 +20,14 @@ import { OTHER_ROUTES, otherSwitcher, renderOther } from './views/other.js';
    month zoom levels. The four remaining screens sit behind Other. */
 
 const SECTIONS = [
-  { id: 'today', label: 'Today', icon: '📋' },
-  { id: 'lists', label: 'Lists', icon: '🗂️' },
-  { id: 'other', label: 'Other', icon: '⋯' },
+  { id: 'today', label: 'Today', href: '#/today', icon: '📋' },
+  { id: 'lists', label: 'Lists', href: '#/lists', icon: '🗂️' },
+  { id: 'other', label: 'Other', href: `#/${OTHER_DEFAULT}`, icon: '⋯' },
 ];
 
 const VIEWS = {
   today: { title: 'Today', render: renderToday },
   lists: { title: 'Lists', render: renderCategories },
-  other: { title: 'More', render: renderOther },
   randomizer: { title: 'Randomizer', render: renderRandomizer },
   timer: { title: 'Timer', render: renderTimer },
   stats: { title: 'Stats', render: renderStats },
@@ -54,43 +53,53 @@ function currentViewId() {
   return VIEWS[id] ? id : 'today';
 }
 
+/* A live clock reading the device time.
+
+   It sits in different places by screen size, because the space available is
+   different: on a computer it's a desk clock in the corner of the masthead;
+   on a phone, where there's no corner to spare, it's its own slim line under
+   the panel. Both are rendered and CSS shows whichever fits. */
+function buildClock() {
+  return el('div', { class: 'clock' }, [
+    el('span', { class: 'clock-time', dataset: { clockTime: '' } }),
+    el('span', { class: 'clock-date', dataset: { clockDate: '' } }),
+  ]);
+}
+
+function tickClock() {
+  const now = new Date();
+  const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const date = formatLong(todayISO());
+  for (const node of document.querySelectorAll('[data-clock-time]')) node.textContent = time;
+  for (const node of document.querySelectorAll('[data-clock-date]')) node.textContent = date;
+}
+
 /* The masthead is the one piece of pure brand in the app: a centred wordmark
-   on a striped panel, with two small pills carrying the day and the day's
-   progress. Rebuilt on each route so the pills stay accurate. */
+   on a striped panel, with pills carrying the day's progress. Rebuilt on each
+   route so the pills stay accurate. */
 function buildMasthead() {
   const done = completedOnDate(store.state.instances, todayISO()).length;
   const streak = currentStreak(store.state.instances);
 
   const pills = el('div', { class: 'pills' }, [
-    el('span', { class: 'pill', text: formatLong(todayISO()) }),
-    done
-      ? el('span', { class: 'pill pill-accent', text: `${done} done today` })
-      : null,
-    streak > 1
-      ? el('span', { class: 'pill pill-quiet', text: `${streak}-day streak` })
-      : null,
+    done ? el('span', { class: 'pill pill-accent', text: `${done} done today` }) : null,
+    streak > 1 ? el('span', { class: 'pill pill-quiet', text: `${streak}-day streak` }) : null,
   ]);
 
   return el('header', { class: 'masthead' }, [
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
+      buildClock(),
       el('div', { class: 'masthead-inner' }, [
-        svg('svg', { class: 'mark', viewBox: '0 0 48 48', fill: 'none', 'aria-hidden': 'true' }, [
-          svg('circle', { cx: '24', cy: '27', r: '14', stroke: 'var(--ink-blue)', 'stroke-width': '2' }),
-          svg('path', { d: 'M24 11V6', stroke: 'var(--ink)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
-          svg('circle', { cx: '24', cy: '4.5', r: '2.6', fill: 'var(--butter)', stroke: 'var(--ink)', 'stroke-width': '1.6' }),
-          svg('path', { d: 'M24 27V19', stroke: 'var(--ink-blue)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
-          svg('path', { d: 'M24 27h6', stroke: 'var(--ink-blue)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
-        ]),
         el('h1', { class: 'wordmark' }, [
-          '10 ',
-          el('em', { text: 'minutes' }),
-          ' to spare',
+          '10 minutes ',
+          el('em', { text: 'to spare' }),
         ]),
         el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
-        pills,
+        done || streak > 1 ? pills : null,
       ]),
     ]),
+    buildClock(),
   ]);
 }
 
@@ -113,7 +122,7 @@ function buildChrome() {
     nav.append(
       el('a', {
         class: 'nav-tab',
-        href: `#/${section.id}`,
+        href: section.href,
         dataset: { section: section.id },
       }, [
         el('span', { class: 'nav-icon', text: section.icon, 'aria-hidden': 'true' }),
@@ -144,6 +153,7 @@ function route({ nav, outlet, mastheadSlot }) {
 
   clear(mastheadSlot);
   mastheadSlot.append(buildMasthead());
+  tickClock();
 
   if (currentView === 'timer' && id !== 'timer') teardownTimer();
   currentView = id;
@@ -187,6 +197,9 @@ async function boot() {
   });
 
   go();
+
+  tickClock();
+  setInterval(tickClock, 1000);
 
   // A day can roll over while the app sits open on a phone.
   setInterval(() => store.refreshSchedule(), 60_000);
