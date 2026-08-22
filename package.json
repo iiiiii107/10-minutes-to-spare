@@ -12,8 +12,8 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "vite": "^7.1.14",
-    "vite-plugin-pwa": "^1.0.5",
-    "vitest": "^3.2.4"
+    "vite": "^8.2.2",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.11"
   }
 }
