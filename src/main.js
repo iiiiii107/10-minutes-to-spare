@@ -1,8 +1,6 @@
 import './styles/app.css';
 import { clear, el, svg, toast } from './lib/dom.js';
 import { store } from './lib/store.js';
-import { completedOnDate } from './lib/schedule.js';
-import { currentStreak } from './lib/stats.js';
 import { formatLong, todayISO } from './lib/dates.js';
 import { registerServiceWorker } from './lib/pwa.js';
 import { renderToday } from './views/today.js';
@@ -105,17 +103,9 @@ function tickClock() {
   for (const node of document.querySelectorAll('[data-clock-date]')) node.textContent = date;
 }
 
-/* The masthead: a centred wordmark on a striped panel, with pills carrying
-   the day's progress. Rebuilt on each route so the pills stay accurate. */
+/* The masthead: a centred wordmark on a striped panel, and the clock button
+   that swaps it for the date and time. */
 function buildMasthead(onToggleTime) {
-  const done = completedOnDate(store.state.instances, todayISO()).length;
-  const streak = currentStreak(store.state.instances);
-
-  const pills = el('div', { class: 'pills' }, [
-    done ? el('span', { class: 'pill pill-accent', text: `${done} done today` }) : null,
-    streak > 1 ? el('span', { class: 'pill pill-quiet', text: `${streak}-day streak` }) : null,
-  ]);
-
   const clockButton = el('button', {
     class: 'clock-btn',
     'aria-pressed': String(showTime),
@@ -138,10 +128,7 @@ function buildMasthead(onToggleTime) {
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
       clockButton,
-      el('div', { class: 'masthead-inner' }, [
-        heading,
-        done || streak > 1 ? pills : null,
-      ]),
+      el('div', { class: 'masthead-inner' }, [heading]),
     ]),
   ]);
 }

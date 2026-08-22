@@ -191,24 +191,6 @@ body[data-view="settings"]   { --accent: var(--sage); }
   font-size: clamp(13px, 2.4vw, 15px); color: var(--muted);
 }
 
-.pills { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-.pill {
-  font-size: 11px; font-weight: 700; letter-spacing: .02em;
-  padding: 6px 14px; border-radius: 999px;
-  background: color-mix(in srgb, var(--paper) 70%, transparent);
-  border: 1px solid var(--hair-strong);
-  color: var(--muted);
-  white-space: nowrap;
-}
-.pill-accent {
-  background: var(--butter); border-color: var(--butter-deep); color: #20395C;
-}
-.pill-quiet {
-  background: color-mix(in srgb, var(--sage) 26%, var(--paper));
-  border-color: color-mix(in srgb, var(--sage) 45%, transparent);
-  color: var(--ink);
-}
-
 .marquee {
   background: var(--band);
   border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
