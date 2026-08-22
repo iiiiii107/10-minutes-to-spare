@@ -16,6 +16,7 @@ export const TOOLS = {
   pen: {
     id: 'pen',
     label: 'Pen',
+    hint: 'Draw across a task to cross it off. This ticks it as done.',
     /** null means "use the task's own colour". */
     ink: null,
     width: 2.2,
@@ -25,22 +26,27 @@ export const TOOLS = {
   highlighter: {
     id: 'highlighter',
     label: 'Highlighter',
-    ink: 'var(--butter)',
+    hint: 'Colour over a task. It stays undone — this only marks it up.',
+    ink: '#EFD87B',
     width: 15,
     opacity: 0.4,
     completes: false,
+    adjustable: true,
   },
   crayon: {
     id: 'crayon',
     label: 'Crayon',
-    ink: 'var(--marker)',
+    hint: 'Scribble on a task. It stays undone — this only marks it up.',
+    ink: '#B8714C',
     width: 5.5,
     opacity: 0.8,
     completes: false,
+    adjustable: true,
   },
   eraser: {
     id: 'eraser',
     label: 'Eraser',
+    hint: 'Rub marks off a task. It leaves the task itself alone.',
     ink: null,
     width: 0,
     opacity: 1,
@@ -50,6 +56,29 @@ export const TOOLS = {
 };
 
 export const TOOL_ORDER = ['pen', 'highlighter', 'crayon', 'eraser'];
+
+/** How far the adjustable tools can be taken, per tool. */
+export const TOOL_LIMITS = {
+  highlighter: { min: 6, max: 30 },
+  crayon: { min: 2, max: 16 },
+};
+
+/**
+ * A tool as it is actually set right now. The highlighter and the crayon can
+ * be given a colour and a width of your own; everything else comes from the
+ * definitions above.
+ * @param {string} id
+ * @param {{ink?: string, width?: number}} [overrides]
+ */
+export function toolWith(id, overrides) {
+  const base = TOOLS[id];
+  if (!base?.adjustable || !overrides) return base;
+  return {
+    ...base,
+    ink: overrides.ink || base.ink,
+    width: Number(overrides.width) || base.width,
+  };
+}
 
 /**
  * Turn a run of pointer positions into a smooth path.

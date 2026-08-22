@@ -1,10 +1,10 @@
-import { capturePointer, checkSvg, clear, confetti, el, strikeSvg, svg, toast } from '../lib/dom.js';
+import { capturePointer, checkSvg, clear, confetti, el, modal, strikeSvg, svg, toast } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { taskDialog } from './categories.js';
 import { pausedBanner } from './pause.js';
 import { penPot, toolSvg } from './pot.js';
 import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable } from './tear.js';
-import { TOOLS, pathFromPoints, simplify } from '../lib/tools.js';
+import { TOOLS, TOOL_LIMITS, pathFromPoints, simplify, toolWith } from '../lib/tools.js';
 import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
 import {
   completedOnDate, instancesForDate, shortFrequency, wasMoved,
@@ -30,6 +30,11 @@ let mode = 'day';
 let selected = todayISO();
 let anchor = todayISO();
 let mountRoot = null;
+
+/* The pot is out of the way until you reach for it — the little pen beside
+   the heading brings it out. It stays out until you put it back, so a session
+   of marking things up isn't one click per stroke. */
+let potOpen = false;
 
 function rerender() {
   if (mountRoot) renderToday(mountRoot);
@@ -101,6 +106,177 @@ function taskRow(instance, seed) {
   return row;
 }
 
+/* ---------- setting a tool up ---------- */
+
+/** A few ready-made inks, so picking one is usually a single click. */
+const INKS = [
+  '#EFD87B', '#E8C05F', '#B8714C', '#C58E5C',
+  '#7E9A70', '#9CB88C', '#7C93B8', '#5B7291',
+  '#8C6A5A', '#302E28',
+];
+
+/**
+ * Double-clicking the highlighter or the crayon opens this: pick its colour
+ * and how broad it draws. Marks already on a task keep the settings they were
+ * drawn with — this changes the next stroke, not the last one.
+ */
+function toolStyleDialog(id) {
+  const tool = TOOLS[id];
+  const limits = TOOL_LIMITS[id];
+  const current = { ...store.state.settings.toolStyles?.[id] };
+  let ink = current.ink || tool.ink;
+  let width = Number(current.width) || tool.width;
+
+  const preview = svg('svg', { class: 'tool-preview', viewBox: '0 0 220 44', 'aria-hidden': 'true' });
+  const stroke = svg('path', {
+    d: 'M 12 30 Q 60 14 108 26 T 208 18',
+    fill: 'none',
+    'stroke-linecap': id === 'highlighter' ? 'butt' : 'round',
+  });
+  preview.append(stroke);
+
+  function draw() {
+    stroke.setAttribute('stroke', ink);
+    stroke.setAttribute('stroke-width', String(width));
+    stroke.setAttribute('stroke-opacity', String(tool.opacity));
+  }
+  draw();
+
+  const swatches = el('div', { class: 'ink-row' });
+  const custom = el('input', {
+    type: 'color',
+    value: ink,
+    'aria-label': 'Any other colour',
+    onInput: (event) => {
+      ink = event.target.value;
+      for (const node of swatches.children) node.setAttribute('aria-pressed', 'false');
+      draw();
+    },
+  });
+
+  for (const value of INKS) {
+    swatches.append(
+      el('button', {
+        type: 'button',
+        class: 'ink-swatch',
+        style: `--ink-swatch:${value}`,
+        'aria-label': value,
+        'aria-pressed': String(value.toLowerCase() === String(ink).toLowerCase()),
+        onClick: (event) => {
+          ink = value;
+          for (const node of swatches.children) node.setAttribute('aria-pressed', 'false');
+          event.currentTarget.setAttribute('aria-pressed', 'true');
+          custom.value = value;
+          draw();
+        },
+      }),
+    );
+  }
+
+  const readout = el('span', { class: 'stepper-value', text: `${width}px` });
+  const slider = el('input', {
+    type: 'range',
+    min: String(limits.min),
+    max: String(limits.max),
+    step: '0.5',
+    value: String(width),
+    'aria-label': 'Width',
+    onInput: (event) => {
+      width = Number(event.target.value);
+      readout.textContent = `${width}px`;
+      draw();
+    },
+  });
+
+  const body = el('div', {}, [
+    el('p', { class: 'muted', style: 'margin-bottom:14px', text: tool.hint }),
+    preview,
+    el('div', { class: 'field' }, [
+      el('label', { text: 'Colour' }),
+      el('div', { class: 'ink-picker' }, [swatches, custom]),
+    ]),
+    el('div', { class: 'field' }, [
+      el('label', { text: 'Width' }),
+      el('div', { class: 'slider-row' }, [slider, readout]),
+    ]),
+  ]);
+
+  modal({
+    title: tool.label,
+    body,
+    actions: [
+      {
+        label: 'Reset',
+        onClick: () => {
+          store.updateSettings({
+            toolStyles: {
+              ...store.state.settings.toolStyles,
+              [id]: { ink: tool.ink, width: tool.width },
+            },
+          });
+        },
+      },
+      {
+        label: 'Save',
+        class: 'btn btn-primary',
+        onClick: () => {
+          store.updateSettings({
+            toolStyles: { ...store.state.settings.toolStyles, [id]: { ink, width } },
+          });
+        },
+      },
+    ],
+  });
+}
+
+/**
+ * The little pen beside the heading. It fetches the pot out and puts it away
+ * again, so the tools are there when you want them and out of the way when
+ * you don't.
+ */
+function potToggle() {
+  return el('button', {
+    class: 'pot-toggle',
+    'aria-pressed': String(potOpen),
+    'aria-label': potOpen ? 'Put the tools away' : 'Get the tools out',
+    title: potOpen ? 'Put the tools away' : 'Get the tools out',
+    onClick: () => {
+      potOpen = !potOpen;
+      rerender();
+    },
+  }, [
+    svg('svg', { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true' }, [
+      // a pen held at an angle, nib down
+      svg('path', {
+        d: 'M5.6 19.2 L7.4 14.6 L16.8 5.2 L19 7.4 L9.6 16.8 Z',
+        fill: 'var(--paper)', stroke: 'currentColor', 'stroke-width': '1.5',
+        'stroke-linejoin': 'round',
+      }),
+      svg('path', {
+        d: 'M16.8 5.2 L18 4 A1.6 1.6 0 0 1 20.2 6.2 L19 7.4 Z',
+        fill: 'currentColor', stroke: 'currentColor', 'stroke-width': '1.5',
+        'stroke-linejoin': 'round',
+      }),
+      svg('path', { d: 'M7.4 14.6 L9.6 16.8', stroke: 'currentColor', 'stroke-width': '1.3' }),
+      svg('path', {
+        d: 'M5.6 19.2 L4.8 20.8 L6.6 20.2 Z',
+        fill: 'currentColor', stroke: 'currentColor', 'stroke-width': '1.2',
+        'stroke-linejoin': 'round',
+      }),
+    ]),
+  ]);
+}
+
+/** The pot, wired to this view's state. */
+function pot(compact = false) {
+  return penPot({
+    onDragStart: startToolDrag,
+    onAdjust: toolStyleDialog,
+    styles: store.state.settings.toolStyles,
+    compact,
+  });
+}
+
 /* ---------- dragging a tool out of the pot ---------- */
 
 /**
@@ -109,13 +285,13 @@ function taskRow(instance, seed) {
  * all the way to a row on the left.
  */
 function startToolDrag(toolId, event, source) {
-  const tool = TOOLS[toolId];
+  const tool = toolWith(toolId, store.state.settings.toolStyles?.[toolId]);
   const rows = () => document.querySelectorAll('#view .task-row[data-instance]');
   if (!rows().length) return;
 
   source.classList.add('lifted');
 
-  const ghost = el('div', { class: 'hand-tool', dataset: { tool: toolId } }, [toolSvg(toolId)]);
+  const ghost = el('div', { class: 'hand-tool', dataset: { tool: toolId } }, [toolSvg(toolId, tool.ink)]);
   document.body.append(ghost);
 
   const place = (x, y) => {
@@ -273,13 +449,17 @@ function todayBody() {
   } else {
     const surface = el('div', { class: 'pen-surface' });
 
-    // On a phone the pot is a flat row above the list rather than a cup.
-    surface.append(
-      el('div', { class: 'pen-bar' }, [
-        penPot(startToolDrag, true),
-        el('span', { class: 'pen-hint', text: 'Tap a box, or drag a tool across a task.' }),
-      ]),
-    );
+    // Narrow screens have no room beside the sheet, so the same tools come out
+    // as a flat row above the list. Either way it's the pen beside the heading
+    // that decides whether they're out at all.
+    if (potOpen) {
+      surface.append(
+        el('div', { class: 'pen-bar' }, [
+          pot(true),
+          el('span', { class: 'pen-hint', text: 'Drag a tool across a task. Hover one to see what it does.' }),
+        ]),
+      );
+    }
 
     pending.forEach((instance, index) => {
       const row = taskRow(instance, index);
@@ -357,7 +537,10 @@ export function renderToday(root) {
   card.append(
     el('div', { class: 'cal-head' }, [
       isToday
-        ? el('h2', { text: 'Today' })
+        ? el('div', { class: 'row title-row' }, [
+            el('h2', { text: 'Today' }),
+            store.state.tasks.length ? potToggle() : null,
+          ])
         : el('div', { class: 'row' }, [
             el('button', { class: 'icon-btn', text: '‹', 'aria-label': 'Previous', onClick: () => step(-1) }),
             el('span', { class: 'cal-title', text: periodTitle(mode, anchor, selected) }),
@@ -408,10 +591,10 @@ export function renderToday(root) {
   // The pot stands to the right of the sheet on a computer. Without it the
   // board is a single column, or the calendar ends up squeezed into the
   // pot's width.
-  const showPot = isToday && store.state.tasks.length > 0;
+  const showPot = isToday && potOpen && store.state.tasks.length > 0;
   const board = el('div', { class: `board${showPot ? ' board-with-pot' : ''}` }, [
     el('div', { class: 'board-main' }, [card]),
-    showPot ? el('aside', { class: 'board-side' }, [penPot(startToolDrag)]) : null,
+    showPot ? el('aside', { class: 'board-side' }, [pot()]) : null,
   ]);
 
   root.append(board);

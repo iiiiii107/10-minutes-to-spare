@@ -569,13 +569,81 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .pot-tool[data-slot="2"]:hover { transform: rotate(3deg) translateY(-8px); }
 .pot-tool[data-slot="3"]:hover { transform: rotate(8deg) translateY(-8px); }
 
-.pot-label {
-  position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
-  font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--muted); white-space: nowrap;
-  opacity: 0; transition: opacity .18s; pointer-events: none;
+/* Hovering a tool says what it does. "Highlighter" on its own doesn't tell
+   you it deliberately leaves the task undone, which is the thing worth
+   knowing about it. */
+.pot-tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: 186px; padding: 9px 11px;
+  border-radius: 10px; background: var(--ink); color: var(--paper);
+  box-shadow: 0 6px 18px -6px var(--shadow-2);
+  font-size: 11.5px; line-height: 1.4; text-align: left;
+  display: flex; flex-direction: column; gap: 3px;
+  opacity: 0; visibility: hidden; pointer-events: none; z-index: 20;
+  transition: opacity .16s, transform .16s, visibility .16s;
 }
-.pot-tool:hover .pot-label { opacity: 1; }
+.pot-tip b { font-size: 12px; letter-spacing: .01em; }
+.pot-tip i { font-style: italic; opacity: .78; }
+.pot-tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--ink);
+}
+.pot-tool:hover .pot-tip,
+.pot-tool:focus-visible .pot-tip {
+  opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+/* The two nearest each edge would otherwise hang off the pot. */
+.pot-stage .pot-tool[data-slot="0"] .pot-tip { left: 0; transform: translateX(-14%) translateY(4px); }
+.pot-stage .pot-tool[data-slot="0"]:hover .pot-tip { transform: translateX(-14%) translateY(0); }
+.pot-stage .pot-tool[data-slot="3"] .pot-tip { left: auto; right: 0; transform: translateX(14%) translateY(4px); }
+.pot-stage .pot-tool[data-slot="3"]:hover .pot-tip { transform: translateX(14%) translateY(0); }
+
+.pot-tool-adjustable { cursor: grab; }
+
+/* ---------- the pen that fetches the pot ---------- */
+
+.pot-toggle {
+  width: 30px; height: 30px; padding: 4px;
+  border: none; border-radius: 9px; cursor: pointer;
+  background: transparent; color: var(--muted);
+  transition: background .16s, color .16s, transform .16s;
+}
+.pot-toggle svg { width: 100%; height: 100%; }
+.pot-toggle:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.pot-toggle:active { transform: scale(.9); }
+.pot-toggle[aria-pressed="true"] {
+  background: var(--butter); color: var(--ink);
+  box-shadow: 0 2px 0 var(--butter-deep);
+}
+
+.title-row { align-items: center; gap: 8px; }
+
+/* ---------- setting a tool up ---------- */
+
+.tool-preview {
+  width: 100%; height: 44px; margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.ink-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ink-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ink-swatch {
+  width: 26px; height: 26px; padding: 0; cursor: pointer;
+  border-radius: 50%; border: 2px solid var(--hair-strong);
+  background: var(--ink-swatch);
+  transition: transform .14s, border-color .14s;
+}
+.ink-swatch:hover { transform: scale(1.12); }
+.ink-swatch[aria-pressed="true"] {
+  border-color: var(--ink); transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--ink-blue); }
 
 .pot-cup {
   position: absolute; left: 0; right: 0; bottom: 0;
@@ -597,10 +665,23 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .pot-compact .pot-tool:hover,
 .pot-compact .pot-tool.lifted { transform: none; }
 .pot-compact .pot-tool svg { width: 13px; height: 26px; }
-.pot-compact .pot-label {
-  position: static; transform: none; opacity: 1; font-size: 9.5px;
+/* In the flat row there's no room for a floating tooltip and no hover to
+   trigger it, so the name sits inline and the full description stays on the
+   button's label for screen readers. */
+.pot-compact .pot-tip {
+  position: static; width: auto; padding: 0;
+  background: none; box-shadow: none; color: var(--muted);
+  opacity: 1; visibility: visible; transform: none;
+  flex-direction: row; font-size: 9.5px; font-weight: 700;
 }
-@media (min-width: 900px) { .pot-compact { display: none; } }
+.pot-compact .pot-tip::after { display: none; }
+.pot-compact .pot-tip span,
+.pot-compact .pot-tip i { display: none; }
+
+/* The cup needs the margin beside the sheet, which only exists on a wide
+   screen; below that the same tools come out as this row. One breakpoint
+   hands over to the other, so there's no width with neither. */
+@media (min-width: 1180px) { .pot-compact { display: none; } }
 
 /* ---------- the dragged tool ---------- */
 

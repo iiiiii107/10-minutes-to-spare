@@ -27,6 +27,13 @@ export const DEFAULT_STATE = {
     notificationsEnabled: false,
     theme: 'system',
     statsVisible: Object.fromEntries(STAT_KEYS.map((s) => [s.id, true])),
+    // Your own settings for the two tools that only mark up. The pen and the
+    // eraser aren't here: the pen takes each task's colour, and the eraser
+    // has nothing to set.
+    toolStyles: {
+      highlighter: { ink: '#EFD87B', width: 15 },
+      crayon: { ink: '#B8714C', width: 5.5 },
+    },
     monthColors: {
       1: '#7C93B8', 2: '#8FA9C4', 3: '#7E9A70', 4: '#9CB88C',
       5: '#C9C06A', 6: '#EFD87B', 7: '#E8C05F', 8: '#D9B54A',
@@ -64,6 +71,10 @@ export function withDefaults(data) {
   settings.monthColors = {
     ...DEFAULT_STATE.settings.monthColors,
     ...(settings.monthColors || {}),
+  };
+  settings.toolStyles = {
+    ...DEFAULT_STATE.settings.toolStyles,
+    ...(settings.toolStyles || {}),
   };
 
   // Frequency used to be weeks-only; it now carries its own period.

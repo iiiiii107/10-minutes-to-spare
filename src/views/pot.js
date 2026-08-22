@@ -1,24 +1,33 @@
 import { el, svg } from '../lib/dom.js';
-import { TOOLS, TOOL_ORDER } from '../lib/tools.js';
+import { TOOLS, TOOL_ORDER, toolWith } from '../lib/tools.js';
 
 /* The pen pot: a line-art cup with the tools standing in it, drawn in the
    same simple outlined style as the reference. Picking one lifts it out of
-   the cup; the cup is drawn over the tools so they read as sitting inside. */
+   the cup; the cup is drawn over the tools so they read as sitting inside.
 
-/** One implement, drawn side-on. */
-function toolArt(id) {
-  const ink = 'var(--ink)';
+   The outlines are deliberately fine — heavy strokes at this size read as a
+   cartoon rather than as the pen-and-ink drawing the rest of the app is
+   after. */
+
+/** Outline weights, kept together so the whole drawing stays in proportion. */
+const STROKE = { cup: 2.1, body: 1.5, detail: 1.3, fine: 1.2 };
+
+/** One implement, drawn side-on. `ink` colours the tools you can re-colour. */
+function toolArt(id, ink) {
+  const line = 'var(--ink)';
 
   if (id === 'pen') {
     return svg('g', {}, [
       svg('path', {
         d: 'M11 14 L19 14 L19 62 L11 62 Z',
-        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+        fill: 'var(--paper)', stroke: line, 'stroke-width': String(STROKE.body),
+        'stroke-linejoin': 'round',
       }),
-      svg('path', { d: 'M11 24 H19', stroke: ink, 'stroke-width': '2' }),
+      svg('path', { d: 'M11 24 H19', stroke: line, 'stroke-width': String(STROKE.detail) }),
       svg('path', {
         d: 'M11 14 L15 5 L19 14 Z',
-        fill: 'var(--ink-blue)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+        fill: 'var(--ink-blue)', stroke: line, 'stroke-width': String(STROKE.body),
+        'stroke-linejoin': 'round',
       }),
     ]);
   }
@@ -27,13 +36,14 @@ function toolArt(id) {
     return svg('g', {}, [
       svg('rect', {
         x: '9', y: '18', width: '13', height: '44', rx: '2',
-        fill: 'var(--butter)', stroke: ink, 'stroke-width': '2.2',
+        fill: ink, stroke: line, 'stroke-width': String(STROKE.body),
       }),
       svg('path', {
         d: 'M10 18 L12 7 H19 L21 18 Z',
-        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+        fill: 'var(--paper)', stroke: line, 'stroke-width': String(STROKE.body),
+        'stroke-linejoin': 'round',
       }),
-      svg('path', { d: 'M9 28 H22', stroke: ink, 'stroke-width': '2' }),
+      svg('path', { d: 'M9 28 H22', stroke: line, 'stroke-width': String(STROKE.detail) }),
     ]);
   }
 
@@ -41,13 +51,15 @@ function toolArt(id) {
     return svg('g', {}, [
       svg('path', {
         d: 'M10 18 L21 18 L21 62 L10 62 Z',
-        fill: 'var(--marker)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+        fill: ink, stroke: line, 'stroke-width': String(STROKE.body),
+        'stroke-linejoin': 'round',
       }),
       svg('path', {
         d: 'M10 18 L15.5 7 L21 18 Z',
-        fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+        fill: 'var(--paper)', stroke: line, 'stroke-width': String(STROKE.body),
+        'stroke-linejoin': 'round',
       }),
-      svg('path', { d: 'M10 30 H21 M10 38 H21', stroke: ink, 'stroke-width': '1.8' }),
+      svg('path', { d: 'M10 30 H21 M10 38 H21', stroke: line, 'stroke-width': String(STROKE.fine) }),
     ]);
   }
 
@@ -55,14 +67,13 @@ function toolArt(id) {
   return svg('g', {}, [
     svg('rect', {
       x: '8', y: '20', width: '16', height: '42', rx: '2.5',
-      fill: 'var(--paper)', stroke: ink, 'stroke-width': '2.2',
+      fill: 'var(--paper)', stroke: line, 'stroke-width': String(STROKE.body),
     }),
-    svg('path', {
-      d: 'M8 33 H24', stroke: ink, 'stroke-width': '2',
-    }),
+    svg('path', { d: 'M8 33 H24', stroke: line, 'stroke-width': String(STROKE.detail) }),
     svg('path', {
       d: 'M9.2 21 H22.8 A1.4 1.4 0 0 1 24 22.4 V33 H8 V22.4 A1.4 1.4 0 0 1 9.2 21 Z',
-      fill: 'var(--rust)', stroke: ink, 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+      fill: 'var(--rust)', stroke: line, 'stroke-width': String(STROKE.body),
+      'stroke-linejoin': 'round',
     }),
   ]);
 }
@@ -71,24 +82,50 @@ function toolArt(id) {
  * A tool standing in the cup. You pull it out and drag it across a task —
  * there's no separate "held" tool that appears elsewhere; the thing you drag
  * is the thing in the pot.
+ *
+ * Hovering says what the tool does, because "highlighter" doesn't tell you
+ * that it deliberately leaves the task undone.
  */
-function toolButton(id, onDragStart, index) {
+function toolButton(id, { onDragStart, onAdjust, styles, index }) {
+  const tool = toolWith(id, styles?.[id]);
+
   const node = el('div', {
-    class: 'pot-tool',
+    class: `pot-tool${tool.adjustable ? ' pot-tool-adjustable' : ''}`,
     role: 'button',
     tabindex: '0',
-    'aria-label': `${TOOLS[id].label} — drag onto a task`,
-    title: `${TOOLS[id].label} — drag onto a task`,
+    'aria-label': `${tool.label}. ${tool.hint}`,
     dataset: { tool: id, slot: String(index) },
   }, [
-    svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [toolArt(id)]),
-    el('span', { class: 'pot-label', text: TOOLS[id].label }),
+    svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [
+      toolArt(id, tool.ink),
+    ]),
+    el('span', { class: 'pot-tip', role: 'tooltip' }, [
+      el('b', { text: tool.label }),
+      el('span', { text: tool.hint }),
+      tool.adjustable
+        ? el('i', { text: 'Double-click to change its colour and width' })
+        : null,
+    ]),
   ]);
 
   node.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     onDragStart(id, event, node);
   });
+
+  if (tool.adjustable && onAdjust) {
+    node.addEventListener('dblclick', (event) => {
+      event.preventDefault();
+      onAdjust(id);
+    });
+    // Keyboard users get there too — drag isn't available to them anyway.
+    node.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onAdjust(id);
+      }
+    });
+  }
 
   return node;
 }
@@ -112,37 +149,38 @@ function cupArt() {
         'C32 56 9 51 9 42',
         'Z',
       ].join(' '),
-      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '3.2',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': String(STROKE.cup),
       'stroke-linejoin': 'round',
     }),
   ]);
 }
 
 /** The tool currently in hand, drawn large for dragging across a task. */
-export function toolSvg(id) {
-  return svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [toolArt(id)]);
+export function toolSvg(id, ink) {
+  return svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [
+    toolArt(id, ink || TOOLS[id].ink),
+  ]);
 }
 
 /**
- * @param {(id: string, event: PointerEvent, node: HTMLElement) => void} onDragStart
- * @param {boolean} compact phone layout — a flat row instead of a cup
+ * @param {object} options
+ * @param {(id: string, event: PointerEvent, node: HTMLElement) => void} options.onDragStart
+ * @param {(id: string) => void} [options.onAdjust] double-click on an adjustable tool
+ * @param {object} [options.styles] per-tool colour and width overrides
+ * @param {boolean} [options.compact] phone layout — a flat row instead of a cup
  */
-export function penPot(onDragStart, compact = false) {
+export function penPot({ onDragStart, onAdjust, styles, compact = false }) {
+  const buttons = TOOL_ORDER.map((id, index) =>
+    toolButton(id, { onDragStart, onAdjust, styles, index }),
+  );
+
   if (compact) {
-    return el(
-      'div',
-      { class: 'pot pot-compact', 'aria-label': 'Tools' },
-      TOOL_ORDER.map((id, i) => toolButton(id, onDragStart, i)),
-    );
+    return el('div', { class: 'pot pot-compact', 'aria-label': 'Tools' }, buttons);
   }
 
   return el('div', { class: 'pot-shell' }, [
     el('div', { class: 'pot-stage' }, [
-      el(
-        'div',
-        { class: 'pot', 'aria-label': 'Tools' },
-        TOOL_ORDER.map((id, i) => toolButton(id, onDragStart, i)),
-      ),
+      el('div', { class: 'pot', 'aria-label': 'Tools' }, buttons),
       cupArt(),
     ]),
   ]);
