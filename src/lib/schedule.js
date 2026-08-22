@@ -1,4 +1,7 @@
-import { addDays, dayOfWeek, isWeekend, startOfWeek, todayISO } from './dates.js';
+import {
+  addDays, addMonths, dayOfWeek, daysInMonth, isWeekend,
+  startOfMonth, startOfWeek, todayISO,
+} from './dates.js';
 
 /* The scheduling engine.
 
@@ -26,27 +29,41 @@ const WINDOW_DAYS = 28;
 const MAX_CASCADE_DAYS = 120;
 
 /**
- * Which offsets from the start of the week a task falls on.
- * Spreads N occurrences as evenly as 7 days allow.
- * @param {number} timesPerWeek 1–7
- * @returns {number[]} day offsets, 0 = first day of the week
+ * Spread N occurrences as evenly as `span` slots allow.
+ * @returns {number[]} offsets, 0-based, ascending
  */
-export function weekSlots(timesPerWeek) {
-  const n = Math.max(1, Math.min(7, Math.round(timesPerWeek)));
+export function spreadSlots(count, span) {
+  const n = Math.max(1, Math.min(span, Math.round(count)));
   const slots = [];
   for (let i = 0; i < n; i += 1) {
-    const offset = Math.round((i * 7) / n);
+    const offset = Math.round((i * span) / n);
     if (!slots.includes(offset)) slots.push(offset);
   }
-  // Rounding can collide for some counts; fill any shortfall with free days.
-  for (let d = 0; slots.length < n && d < 7; d += 1) {
+  // Rounding can collide for some counts; fill any shortfall with free slots.
+  for (let d = 0; slots.length < n && d < span; d += 1) {
     if (!slots.includes(d)) slots.push(d);
   }
   return slots.sort((a, b) => a - b);
 }
 
-function instanceKey(taskId, weekStart, slot) {
-  return `${taskId}|${weekStart}|${slot}`;
+/** Day offsets from the start of a week. */
+export function weekSlots(timesPerWeek) {
+  return spreadSlots(timesPerWeek, 7);
+}
+
+/** How often a task repeats, tolerating the older `timesPerWeek` shape. */
+export function frequencyOf(task) {
+  return {
+    count: task.count ?? task.timesPerWeek ?? 1,
+    period: task.period || 'week',
+  };
+}
+
+/** The most a period can hold, so counts stay meaningful. */
+export const PERIOD_MAX = { week: 7, month: 28, year: 12 };
+
+function instanceKey(taskId, periodStart, slot) {
+  return `${taskId}|${periodStart}|${slot}`;
 }
 
 /**
@@ -54,40 +71,75 @@ function instanceKey(taskId, weekStart, slot) {
  * Existing instances are never touched — a task's frequency changing only
  * affects weeks not yet generated.
  */
-export function generateInstances(tasks, instances, today, settings) {
-  const existing = new Set(instances.map((i) => i.key));
-  const created = [];
+/**
+ * Every date a task falls on within the planning window, with a stable key
+ * per occurrence so re-running never duplicates one.
+ *
+ * A week task spreads across its 7 days; a month task across that month's
+ * days; a year task across its 12 months. Same idea at three scales, so
+ * "twice a month" and "twice a year" behave as predictably as "twice a week".
+ */
+function occurrences(task, today, horizon, settings) {
+  const { count, period } = frequencyOf(task);
+  const out = [];
+
+  if (period === 'year') {
+    for (let y = 0; y < 2; y += 1) {
+      const yearStart = `${Number(today.slice(0, 4)) + y}-01-01`;
+      spreadSlots(count, 12).forEach((month, index) => {
+        out.push({ date: addMonths(yearStart, month), key: instanceKey(task.id, yearStart, `y${index}`) });
+      });
+    }
+    return out;
+  }
+
+  if (period === 'month') {
+    for (let m = 0; m < 3; m += 1) {
+      const monthStart = addMonths(startOfMonth(today), m);
+      const span = daysInMonth(monthStart);
+      spreadSlots(count, span).forEach((day, index) => {
+        out.push({ date: addDays(monthStart, day), key: instanceKey(task.id, monthStart, `m${index}`) });
+      });
+    }
+    return out;
+  }
 
   const firstWeek = startOfWeek(today, settings.weekStartsOn ?? 1);
   const weeksToCover = Math.ceil(WINDOW_DAYS / 7) + 1;
+  for (let w = 0; w < weeksToCover; w += 1) {
+    const weekStart = addDays(firstWeek, w * 7);
+    for (const slot of weekSlots(count)) {
+      out.push({ date: addDays(weekStart, slot), key: instanceKey(task.id, weekStart, slot) });
+    }
+  }
+  return out.filter((o) => o.date <= horizon);
+}
+
+export function generateInstances(tasks, instances, today, settings) {
+  const existing = new Set(instances.map((i) => i.key));
+  const created = [];
+  const horizon = addDays(today, WINDOW_DAYS * 2);
 
   for (const task of tasks) {
     if (task.active === false) continue;
 
-    for (let w = 0; w < weeksToCover; w += 1) {
-      const weekStart = addDays(firstWeek, w * 7);
+    for (const { date, key } of occurrences(task, today, horizon, settings)) {
+      // Don't create instances for days already gone.
+      if (date < today) continue;
+      // Nothing is scheduled while a task is paused.
+      if (task.pausedUntil && date < task.pausedUntil) continue;
+      if (existing.has(key)) continue;
 
-      for (const slot of weekSlots(task.timesPerWeek)) {
-        const date = addDays(weekStart, slot);
-        // Don't create instances for days already gone.
-        if (date < today) continue;
-        // Nothing is scheduled while a task is paused.
-        if (task.pausedUntil && date < task.pausedUntil) continue;
-
-        const key = instanceKey(task.id, weekStart, slot);
-        if (existing.has(key)) continue;
-
-        existing.add(key);
-        created.push({
-          id: key,
-          key,
-          taskId: task.id,
-          scheduledDate: date,
-          originalDueDate: date,
-          status: 'incomplete',
-          completedAt: null,
-        });
-      }
+      existing.add(key);
+      created.push({
+        id: key,
+        key,
+        taskId: task.id,
+        scheduledDate: date,
+        originalDueDate: date,
+        status: 'incomplete',
+        completedAt: null,
+      });
     }
   }
 
@@ -216,11 +268,20 @@ export function wasMoved(instance) {
 }
 
 /** Day offsets a task occupies, for showing its rhythm in the editor. */
-export function describeFrequency(timesPerWeek) {
-  const n = Math.max(1, Math.min(7, Math.round(timesPerWeek)));
-  if (n === 7) return 'every day';
-  if (n === 1) return 'once a week';
-  return `${n}× a week`;
+export function describeFrequency(count, period = 'week') {
+  const max = PERIOD_MAX[period] || 7;
+  const n = Math.max(1, Math.min(max, Math.round(count)));
+  if (period === 'week' && n === 7) return 'every day';
+  const unit = { week: 'a week', month: 'a month', year: 'a year' }[period];
+  if (n === 1) return `once ${unit}`;
+  if (n === 2) return `twice ${unit}`;
+  return `${n}× ${unit}`;
+}
+
+/** Short form for the badge on a task row. */
+export function shortFrequency(task) {
+  const { count, period } = frequencyOf(task);
+  return `${count}×/${{ week: 'wk', month: 'mo', year: 'yr' }[period]}`;
 }
 
 /** Weekday index (0=Sun) for each slot — used by the calendar preview. */

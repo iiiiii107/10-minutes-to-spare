@@ -13,24 +13,26 @@ export const OTHER_ROUTES = ['randomizer', 'timer', 'stats', 'settings'];
 export const OTHER_DEFAULT = 'randomizer';
 
 const LABELS = {
-  randomizer: 'Randomizer',
-  timer: 'Timer',
-  stats: 'Stats',
-  settings: 'Settings',
+  randomizer: { text: 'Wheel', icon: '🎯' },
+  timer: { text: 'Timer', icon: '⏱️' },
+  stats: { text: 'Stats', icon: '📈' },
+  settings: { text: 'Settings', icon: '⚙️' },
 };
 
 export function otherSwitcher(activeId) {
   return el(
     'div',
-    { class: 'seg seg-wide', role: 'tablist', 'aria-label': 'More views' },
+    { class: 'section-tabs', role: 'tablist', 'aria-label': 'More views' },
     OTHER_ROUTES.map((id) =>
       el('a', {
-        class: 'seg-item',
+        class: 'section-tab',
         href: `#/${id}`,
         role: 'tab',
-        text: LABELS[id],
         'aria-selected': String(id === activeId),
-      }),
+      }, [
+        el('span', { class: 'tab-icon', text: LABELS[id].icon, 'aria-hidden': 'true' }),
+        el('span', { text: LABELS[id].text }),
+      ]),
     ),
   );
 }

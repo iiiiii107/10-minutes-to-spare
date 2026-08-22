@@ -10,6 +10,9 @@
 
 export function registerServiceWorker(base = '/') {
   if (!('serviceWorker' in navigator)) return;
+  // No service worker is built in dev, so registering there just fetches
+  // index.html and logs a MIME-type error.
+  if (import.meta.env.DEV) return;
 
   // A first install also fires controllerchange. Only a *replacement* worker
   // means the page is showing stale code, so only that should reload.

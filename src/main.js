@@ -1,5 +1,5 @@
 import './styles/app.css';
-import { clear, el, toast } from './lib/dom.js';
+import { clear, el, svg, toast } from './lib/dom.js';
 import { store } from './lib/store.js';
 import { completedOnDate } from './lib/schedule.js';
 import { currentStreak } from './lib/stats.js';
@@ -55,16 +55,45 @@ function currentViewId() {
   return VIEWS[id] ? id : 'today';
 }
 
-/* A live clock reading the device time.
+/* The clock.
 
-   It sits in different places by screen size, because the space available is
-   different: on a computer it's a desk clock in the corner of the masthead;
-   on a phone, where there's no corner to spare, it's its own slim line under
-   the panel. Both are rendered and CSS shows whichever fits. */
-function buildClock() {
-  return el('div', { class: 'clock' }, [
-    el('span', { class: 'clock-time', dataset: { clockTime: '' } }),
-    el('span', { class: 'clock-date', dataset: { clockDate: '' } }),
+   A drawn alarm clock in the app's own palette, in the flat hand-drawn style
+   of the reference. Tapping it swaps the wordmark and its line for the date
+   and time, and tapping again puts them back — so the time is always one tap
+   away without permanently taking the masthead's best real estate. */
+
+let showTime = false;
+
+function clockIcon() {
+  return svg('svg', { viewBox: '0 0 64 64', fill: 'none', 'aria-hidden': 'true' }, [
+    // winder on top
+    svg('path', {
+      d: 'M26 13c0-3 2.7-4.6 6-4.6S38 10 38 13Z',
+      fill: 'var(--rust)', stroke: 'var(--ink)', 'stroke-width': '2.6',
+      'stroke-linejoin': 'round',
+    }),
+    svg('path', { d: 'M29 9v4M32 8.6v4.4M35 9v4', stroke: 'var(--ink)', 'stroke-width': '1.6' }),
+    // body
+    svg('rect', {
+      x: '8', y: '14', width: '48', height: '42', rx: '13',
+      fill: 'var(--sage)', stroke: 'var(--ink)', 'stroke-width': '2.8',
+    }),
+    // face
+    svg('rect', {
+      x: '15', y: '20', width: '32', height: '30', rx: '8',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '2.4',
+    }),
+    // ticks
+    svg('path', {
+      d: 'M31 24v2.4M31 43.6V46M21.5 35h2.4M38.1 35h2.4',
+      stroke: 'var(--ink)', 'stroke-width': '1.8', 'stroke-linecap': 'round',
+    }),
+    // hands
+    svg('path', {
+      d: 'M31 35V27M31 35l6 3',
+      stroke: 'var(--ink)', 'stroke-width': '2.6', 'stroke-linecap': 'round',
+    }),
+    svg('circle', { cx: '31', cy: '35', r: '3', fill: 'var(--rust)', stroke: 'var(--ink)', 'stroke-width': '1.8' }),
   ]);
 }
 
@@ -76,10 +105,9 @@ function tickClock() {
   for (const node of document.querySelectorAll('[data-clock-date]')) node.textContent = date;
 }
 
-/* The masthead is the one piece of pure brand in the app: a centred wordmark
-   on a striped panel, with pills carrying the day's progress. Rebuilt on each
-   route so the pills stay accurate. */
-function buildMasthead() {
+/* The masthead: a centred wordmark on a striped panel, with pills carrying
+   the day's progress. Rebuilt on each route so the pills stay accurate. */
+function buildMasthead(onToggleTime) {
   const done = completedOnDate(store.state.instances, todayISO()).length;
   const streak = currentStreak(store.state.instances);
 
@@ -88,20 +116,33 @@ function buildMasthead() {
     streak > 1 ? el('span', { class: 'pill pill-quiet', text: `${streak}-day streak` }) : null,
   ]);
 
+  const clockButton = el('button', {
+    class: 'clock-btn',
+    'aria-pressed': String(showTime),
+    'aria-label': showTime ? 'Show the title' : 'Show the date and time',
+    title: showTime ? 'Show the title' : 'Show the date and time',
+    onClick: onToggleTime,
+  }, [clockIcon()]);
+
+  const heading = showTime
+    ? el('div', { class: 'clock-face' }, [
+        el('div', { class: 'clock-time', dataset: { clockTime: '' } }),
+        el('div', { class: 'clock-date', dataset: { clockDate: '' } }),
+      ])
+    : el('div', {}, [
+        el('h1', { class: 'wordmark' }, ['10 minutes ', el('em', { text: 'to spare' })]),
+        el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
+      ]);
+
   return el('header', { class: 'masthead' }, [
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
-      buildClock(),
+      clockButton,
       el('div', { class: 'masthead-inner' }, [
-        el('h1', { class: 'wordmark' }, [
-          '10 minutes ',
-          el('em', { text: 'to spare' }),
-        ]),
-        el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
+        heading,
         done || streak > 1 ? pills : null,
       ]),
     ]),
-    buildClock(),
   ]);
 }
 
@@ -154,7 +195,12 @@ function route({ nav, outlet, mastheadSlot }) {
   const section = sectionFor(id);
 
   clear(mastheadSlot);
-  mastheadSlot.append(buildMasthead());
+  mastheadSlot.append(
+    buildMasthead(() => {
+      showTime = !showTime;
+      route({ nav, outlet, mastheadSlot });
+    }),
+  );
   tickClock();
 
   if (currentView === 'timer' && id !== 'timer') teardownTimer(outlet);

@@ -78,6 +78,16 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
   background-size: 30px 30px;
 }
 
+/* "to spare" takes the accent of whichever page you're on, so the wordmark
+   answers the surface behind it rather than sitting apart from it. */
+body[data-view="today"]      { --accent: var(--rust); }
+body[data-view="lists"]      { --accent: var(--sage); }
+body[data-view="calendar"]   { --accent: var(--ink-blue); }
+body[data-view="randomizer"] { --accent: var(--butter-deep); }
+body[data-view="timer"]      { --accent: var(--rust); }
+body[data-view="stats"],
+body[data-view="settings"]   { --accent: var(--sage); }
+
 /* ---------- paper surface ---------- */
 
 .paper {
@@ -129,43 +139,38 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .masthead-inner {
   position: relative;
   display: flex; flex-direction: column; align-items: center;
-  gap: 6px; padding: 26px 20px 22px;
+  gap: 6px;
+  /* Side padding keeps the wordmark clear of the clock button in the corner. */
+  padding: 26px 58px 22px;
   text-align: center;
 }
+.masthead-inner .wordmark { text-wrap: balance; }
 
 /* ---------- clock ----------
-   Two are rendered; CSS picks the one that suits the screen. On a computer
-   it's a desk clock in the corner of the panel. On a phone there is no spare
-   corner, so it becomes its own line beneath. */
+   A button in the corner of the panel. Tapping it swaps the wordmark for the
+   date and time; tapping again brings the wordmark back. */
 
-.clock {
-  display: flex; align-items: baseline; gap: 8px;
-  font-variant-numeric: tabular-nums;
+.clock-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 3;
+  width: 44px; height: 44px; padding: 7px;
+  border: none; border-radius: 12px; cursor: pointer;
+  background: transparent;
+  transition: background .18s, transform .18s;
 }
-.clock-time {
+.clock-btn:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.clock-btn:active { transform: scale(.92); }
+.clock-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.clock-btn svg { width: 100%; height: 100%; }
+
+.clock-face { font-variant-numeric: tabular-nums; }
+.clock-face .clock-time {
   font-family: var(--font-display); font-weight: 600;
-  color: var(--ink-deep); line-height: 1;
+  font-size: clamp(38px, 11vw, 62px); line-height: 1;
+  color: var(--ink-blue); letter-spacing: -1px;
 }
-.clock-date { font-size: 11.5px; font-weight: 700; color: var(--muted); }
-
-/* phone: the one after the panel */
-.masthead > .clock {
-  justify-content: center; flex-wrap: wrap;
-  padding: 10px 20px 0;
-}
-.masthead > .clock .clock-time { font-size: 19px; }
-
-/* computer: the one inside the panel */
-.masthead-panel > .clock { display: none; }
-
-@media (min-width: 720px) {
-  .masthead > .clock { display: none; }
-  .masthead-panel > .clock {
-    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
-    position: absolute; top: 18px; right: 22px; z-index: 2;
-    text-align: right;
-  }
-  .masthead-panel > .clock .clock-time { font-size: 26px; }
+.clock-face .clock-date {
+  font-family: var(--font-display); font-style: italic; font-weight: 500;
+  font-size: clamp(13px, 2.6vw, 16px); color: var(--accent); margin-top: 6px;
 }
 
 .wordmark {
@@ -178,7 +183,8 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
    reference wordmarks use. */
 .wordmark em {
   font-style: italic; font-weight: 500;
-  color: var(--rust);
+  color: var(--accent);
+  transition: color .4s ease;
 }
 .wordmark-sub {
   font-family: var(--font-display); font-style: italic; font-weight: 500;
@@ -295,8 +301,14 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .btn-secondary { --face: var(--paper); --face-text: var(--ink-blue); }
 .btn-ghost { --face: var(--butter); --edge: var(--butter-deep); --face-text: #20395C; }
 
-.btn { font-size: 13.5px; border-radius: 9px; padding: 11px 22px; }
-.btn-sm { padding: 8px 15px; font-size: 12px; border-radius: 8px; }
+/* Main buttons wear the display face — the same one "to spare" is set in. */
+.btn {
+  font-family: var(--font-display);
+  font-style: italic; font-weight: 600;
+  font-size: 15px; letter-spacing: .01em;
+  border-radius: 9px; padding: 10px 22px;
+}
+.btn-sm { padding: 7px 16px; font-size: 13.5px; border-radius: 8px; }
 
 .btn:hover, .seg-item:hover, .nav-tab:hover, .preset:hover, .cal-mode:hover {
   color: var(--face-text);
@@ -309,10 +321,44 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
    every "pick one of these" reads the same way. */
 .seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .seg-wide { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
+.seg-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg-item {
   display: flex; align-items: center; justify-content: center;
-  padding: 9px 14px; border-radius: 8px;
+  padding: 9px 10px; border-radius: 8px;
   font-size: 12.5px; min-width: 0; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seg-wrap .seg-item { flex: 1 1 44px; }
+
+/* The Other section's tabs sit directly on top of its panel, sharing its
+   rounded top corners — so they read as tabs of that panel rather than a
+   second navigation bar competing with the one at the bottom. */
+.section-tabs {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 4px; margin-bottom: -14px; padding: 0 6px;
+  position: relative; z-index: 2;
+}
+.section-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 3px; min-width: 0;
+  padding: 9px 4px 18px;
+  border-radius: 12px 12px 0 0;
+  text-decoration: none; text-align: center;
+  font-weight: 700; font-size: 10.5px; line-height: 1.15;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  transition: background .18s, color .18s;
+}
+.section-tab span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.section-tab:hover { color: var(--ink); }
+.section-tab[aria-selected="true"] {
+  color: var(--ink-deep);
+  background: var(--paper);
+}
+.section-tab .tab-icon { font-size: 16px; line-height: 1; }
+@media (min-width: 480px) {
+  .section-tab { font-size: 12px; padding: 11px 8px 20px; }
+  .section-tab .tab-icon { font-size: 18px; }
 }
 
 .icon-btn {
@@ -450,15 +496,16 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .pen-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .pen-hint { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .pen {
-  position: absolute; width: 30px; height: 84px; z-index: 40;
+  position: absolute; width: 21px; height: 59px; z-index: 40;
   cursor: grab; touch-action: none; display: none;
-  transform: rotate(14deg); transform-origin: 50% 88%;
-  filter: drop-shadow(3px 5px 5px var(--shadow-2));
+  transform: rotate(12deg); transform-origin: 50% 88%;
+  filter: drop-shadow(2px 4px 4px var(--shadow-2));
+  overflow: visible;
 }
 .pen.active { display: block; }
 .pen:active { cursor: grabbing; }
 .pen-surface.armed .task-row { background: color-mix(in srgb, var(--task) 7%, transparent); }
-.pen-surface { position: relative; }
+.pen-surface { position: relative; overflow: visible; }
 
 /* ---------- calendar ---------- */
 
@@ -488,8 +535,9 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .day-cell.weekend { background: color-mix(in srgb, var(--hair) 60%, transparent); }
 .day-cell.selected { outline: 2px solid var(--ink-blue); outline-offset: 1px; }
 
-.week-strip { display: flex; gap: 6px; }
-.week-strip .day-cell { flex: 1; min-height: 76px; }
+.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.week-strip > div { min-width: 0; }
+.week-strip .day-cell { width: 100%; min-height: 74px; }
 
 .month-legend { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: var(--muted); margin-top: 14px; }
 .month-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -497,7 +545,7 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 /* ---------- randomizer ---------- */
 
 .wheel-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
-.wheel-frame { position: relative; width: min(280px, 72vw); aspect-ratio: 1; }
+.wheel-frame { position: relative; width: min(240px, 62vw); aspect-ratio: 1; }
 .wheel {
   width: 100%; height: 100%; border-radius: 50%;
   border: 1px solid var(--hair);
@@ -624,6 +672,8 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 /* ---------- misc ---------- */
 
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Any run of buttons keeps the same rhythm wherever it appears. */
+.row > .btn, .badge-row > .btn { flex: 0 0 auto; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .muted { color: var(--muted); font-size: 12.5px; font-weight: 600; }

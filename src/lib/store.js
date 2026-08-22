@@ -90,13 +90,14 @@ class Store extends EventTarget {
 
   // ---- tasks ------------------------------------------------------------
 
-  addTask({ categoryId, name, timesPerWeek = 2, color }) {
+  addTask({ categoryId, name, count = 2, period = 'week', color }) {
     const category = this.state.categories.find((c) => c.id === categoryId);
     this.state.tasks.push({
       id: uid(),
       categoryId,
       name: name.trim(),
-      timesPerWeek: Number(timesPerWeek),
+      count: Number(count),
+      period,
       color: color || category?.color || TASK_COLORS[0],
       active: true,
       createdAt: new Date().toISOString(),
@@ -110,7 +111,8 @@ class Store extends EventTarget {
     if (!task) return this.persist();
 
     const frequencyChanged =
-      patch.timesPerWeek != null && patch.timesPerWeek !== task.timesPerWeek;
+      (patch.count != null && patch.count !== task.count) ||
+      (patch.period != null && patch.period !== task.period);
     Object.assign(task, patch);
 
     if (frequencyChanged) {

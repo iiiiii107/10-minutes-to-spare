@@ -64,7 +64,14 @@ function withDefaults(data) {
     ...(settings.monthColors || {}),
   };
 
-  return { ...DEFAULT_STATE, ...data, settings };
+  // Frequency used to be weeks-only; it now carries its own period.
+  const tasks = (data.tasks || []).map((task) =>
+    task.count == null
+      ? { ...task, count: task.timesPerWeek ?? 1, period: 'week' }
+      : task,
+  );
+
+  return { ...DEFAULT_STATE, ...data, tasks, settings };
 }
 
 export function createLocalStorage() {

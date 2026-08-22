@@ -1,6 +1,6 @@
-import { clear, el, modal, toast } from '../lib/dom.js';
+import { clear, clear as clearNode, el, modal, toast } from '../lib/dom.js';
 import { store, TASK_COLORS } from '../lib/store.js';
-import { describeFrequency } from '../lib/schedule.js';
+import { PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency } from '../lib/schedule.js';
 
 /* Categories and the tasks inside them. Everything is editable: tap a
    category to rename it, change its emoji or colour, or delete it. */
@@ -11,8 +11,13 @@ const EMOJI_CHOICES = [
   '📞', '🛒', '🧾', '🗂️', '🛏️', '🚿', '🧠', '✨',
 ];
 
+/** The palette for quick picking, plus a colour wheel for anything else. */
 function colorPicker(selected, onPick) {
   const wrap = el('div', { class: 'swatch-picker' });
+  const clear = () => {
+    for (const node of wrap.children) node.setAttribute('aria-pressed', 'false');
+  };
+
   for (const color of TASK_COLORS) {
     wrap.append(
       el('button', {
@@ -22,20 +27,51 @@ function colorPicker(selected, onPick) {
         'aria-label': `Colour ${color}`,
         'aria-pressed': String(color === selected),
         onClick: (event) => {
-          for (const node of wrap.children) node.setAttribute('aria-pressed', 'false');
+          clear();
           event.currentTarget.setAttribute('aria-pressed', 'true');
           onPick(color);
         },
       }),
     );
   }
+
+  // A custom colour lands here and stays selected while you tune it.
+  const custom = el('input', {
+    type: 'color',
+    class: 'swatch-custom',
+    value: selected?.startsWith('#') ? selected : '#7E9A70',
+    'aria-label': 'Any other colour',
+    title: 'Any other colour',
+    onInput: (event) => {
+      clear();
+      custom.setAttribute('aria-pressed', 'true');
+      onPick(event.target.value);
+    },
+  });
+  if (selected?.startsWith('#')) custom.setAttribute('aria-pressed', 'true');
+  wrap.append(custom);
+
   return wrap;
 }
 
+/** Common icons for one tap, and a field that takes any emoji at all. */
 function emojiPicker(selected, onPick) {
-  const wrap = el('div', { class: 'emoji-picker' });
+  const grid = el('div', { class: 'emoji-picker' });
+
+  const free = el('input', {
+    class: 'input emoji-free',
+    value: selected || '',
+    maxlength: '4',
+    'aria-label': 'Any emoji',
+    placeholder: '🙂',
+    onInput: (event) => {
+      for (const node of grid.children) node.setAttribute('aria-pressed', 'false');
+      onPick(event.target.value.trim());
+    },
+  });
+
   for (const emoji of EMOJI_CHOICES) {
-    wrap.append(
+    grid.append(
       el('button', {
         type: 'button',
         class: 'emoji-opt',
@@ -43,14 +79,22 @@ function emojiPicker(selected, onPick) {
         'aria-label': emoji,
         'aria-pressed': String(emoji === selected),
         onClick: (event) => {
-          for (const node of wrap.children) node.setAttribute('aria-pressed', 'false');
+          for (const node of grid.children) node.setAttribute('aria-pressed', 'false');
           event.currentTarget.setAttribute('aria-pressed', 'true');
+          free.value = emoji;
           onPick(emoji);
         },
       }),
     );
   }
-  return wrap;
+
+  return el('div', { class: 'emoji-field' }, [
+    grid,
+    el('div', { class: 'emoji-any' }, [
+      el('span', { class: 'muted', text: 'or paste any emoji:' }),
+      free,
+    ]),
+  ]);
 }
 
 function categoryDialog(existing) {
@@ -124,7 +168,7 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
   const draft = {
     categoryId: categoryId || store.state.categories[0]?.id,
     name: existing?.name || '',
-    timesPerWeek: existing?.timesPerWeek ?? 2,
+    ...(existing ? frequencyOf(existing) : { count: 2, period: 'week' }),
     color: existing?.color || category?.color || TASK_COLORS[0],
   };
 
@@ -149,32 +193,68 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
         ),
       );
 
-  // A row of seven tappable counts beats a slider here: the whole range is
-  // visible, every value is one tap, and it works the same on a touchscreen.
+  // Period first, then how many times within it. Counts are tappable rather
+  // than a slider: the whole range is visible and every value is one tap.
   const freqValue = el('span', {
     class: 'muted',
-    style: 'margin-top:6px; display:block',
-    text: describeFrequency(draft.timesPerWeek),
+    style: 'margin-top:8px; display:block',
   });
-  const freqInput = el('div', { class: 'seg seg-wide' });
-  for (let n = 1; n <= 7; n += 1) {
-    freqInput.append(
+  const countRow = el('div', { class: 'seg seg-wrap' });
+
+  function paintCounts() {
+    clearNode(countRow);
+    const max = PERIOD_MAX[draft.period];
+    // A month or a year offers more slots than fit as buttons, so those step
+    // through sensible counts rather than every possible number.
+    const choices =
+      draft.period === 'week'
+        ? [1, 2, 3, 4, 5, 6, 7]
+        : draft.period === 'month'
+          ? [1, 2, 3, 4, 6, 8, 12]
+          : [1, 2, 3, 4, 6, 12];
+
+    if (draft.count > max) draft.count = max;
+
+    for (const n of choices) {
+      countRow.append(
+        el('button', {
+          type: 'button',
+          class: 'seg-item',
+          text: String(n),
+          'aria-label': `${n} times a ${draft.period}`,
+          'aria-selected': String(n === draft.count),
+          onClick: () => {
+            draft.count = n;
+            paintCounts();
+          },
+        }),
+      );
+    }
+    freqValue.textContent = describeFrequency(draft.count, draft.period);
+  }
+
+  const periodRow = el(
+    'div',
+    { class: 'seg seg-wide' },
+    ['week', 'month', 'year'].map((period) =>
       el('button', {
         type: 'button',
         class: 'seg-item',
-        text: String(n),
-        'aria-label': `${n} times a week`,
-        'aria-selected': String(n === draft.timesPerWeek),
-        onClick: () => {
-          draft.timesPerWeek = n;
-          for (const node of freqInput.children) {
-            node.setAttribute('aria-selected', String(Number(node.textContent) === n));
+        text: `a ${period}`,
+        'aria-selected': String(period === draft.period),
+        onClick: (event) => {
+          draft.period = period;
+          for (const node of event.currentTarget.parentNode.children) {
+            node.setAttribute('aria-selected', 'false');
           }
-          freqValue.textContent = describeFrequency(n);
+          event.currentTarget.setAttribute('aria-selected', 'true');
+          paintCounts();
         },
       }),
-    );
-  }
+    ),
+  );
+
+  paintCounts();
 
   const body = el('div', {}, [
     el('div', { class: 'field' }, [el('label', { text: 'Task' }), nameInput]),
@@ -186,7 +266,8 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
       : null,
     el('div', { class: 'field' }, [
       el('label', { text: 'How often' }),
-      freqInput,
+      periodRow,
+      el('div', { style: 'margin-top:8px' }, [countRow]),
       freqValue,
     ]),
     el('div', { class: 'field' }, [
@@ -288,7 +369,7 @@ function categoryCard(category) {
             task.pausedUntil && task.pausedUntil > new Date().toISOString().slice(0, 10)
               ? el('span', { class: 'badge moved', text: 'paused' })
               : null,
-            el('span', { class: 'freq-badge', text: `${task.timesPerWeek}×/wk` }),
+            el('span', { class: 'freq-badge', text: shortFrequency(task) }),
             el('button', {
               class: 'icon-btn',
               'aria-label': `Move ${task.name} up`,

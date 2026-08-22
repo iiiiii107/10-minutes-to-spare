@@ -5,7 +5,7 @@ import { pausedBanner } from './pause.js';
 import {
   dayList, monthGrid, monthLegend, periodTitle, weekGrid,
 } from './calendar.js';
-import { completedOnDate, instancesForDate, wasMoved } from '../lib/schedule.js';
+import { completedOnDate, instancesForDate, shortFrequency, wasMoved } from '../lib/schedule.js';
 import { currentStreak, completedTotal, milestoneFor } from '../lib/stats.js';
 import { addDays, fromISO, todayISO } from '../lib/dates.js';
 
@@ -13,9 +13,12 @@ import { addDays, fromISO, todayISO } from '../lib/dates.js';
    off in. Week and month are the same data zoomed out, so the calendar isn't
    a separate place you have to go. */
 
-/** How far the nib sits from the pointer, matching the pen's drawn geometry. */
-const NIB_OFFSET_Y = 52;
-const NIB_OFFSET_X = 2;
+/** How far the nib sits from the pointer, matching the pen's drawn geometry.
+    The pen is 21x59, held near the top, so the nib trails ~36px below. */
+const NIB_OFFSET_Y = 36;
+const NIB_OFFSET_X = 1;
+const PEN_GRAB_X = 10;
+const PEN_GRAB_Y = 21;
 
 let mode = 'day';
 let selected = todayISO();
@@ -71,7 +74,7 @@ function taskRow(instance, seed) {
     ]),
     el('div', { class: 'task-meta' }, [
       wasMoved(instance) ? el('span', { class: 'badge moved', text: 'moved' }) : null,
-      el('span', { class: 'freq-badge', text: `${task.timesPerWeek}×/wk` }),
+      el('span', { class: 'freq-badge', text: shortFrequency(task) }),
     ]),
   );
   return row;
@@ -92,7 +95,7 @@ function attachPen(surface, button, hint) {
       ? 'Drag the pen across a task to cross it off.'
       : 'Tap a box, or pick up the pen.';
     if (armed) {
-      pen.style.left = `${surface.clientWidth - 74}px`;
+      pen.style.left = `${surface.clientWidth - 52}px`;
       pen.style.top = '0px';
     }
   });
@@ -106,8 +109,8 @@ function attachPen(surface, button, hint) {
   pen.addEventListener('pointermove', (event) => {
     if (!dragging) return;
     const box = surface.getBoundingClientRect();
-    pen.style.left = `${event.clientX - box.left - 15}px`;
-    pen.style.top = `${event.clientY - box.top - 30}px`;
+    pen.style.left = `${event.clientX - box.left - PEN_GRAB_X}px`;
+    pen.style.top = `${event.clientY - box.top - PEN_GRAB_Y}px`;
 
     const nibX = event.clientX + NIB_OFFSET_X;
     const nibY = event.clientY + NIB_OFFSET_Y;

@@ -45,6 +45,8 @@
   --task-5: #20395C; /* ink */
   --task-6: #EFD87B; /* butter */
 
+  --accent: #B8714C;
+
   --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
   --font-body: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
 
@@ -78,6 +80,7 @@
     --bg-calendar:   #0E2246;
     --bg-randomizer: #1F2740;
     --bg-timer:      #24243F;
+    --accent: #D08A62;
 
     --shadow-1: rgba(0, 0, 0, .30);
     --shadow-2: rgba(0, 0, 0, .55);

@@ -56,6 +56,28 @@ export function orderedDayNames(weekStartsOn = 1) {
   return Array.from({ length: 7 }, (_, i) => DAY_NAMES[(weekStartsOn + i) % 7]);
 }
 
+export function startOfMonth(iso) {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+export function startOfYear(iso) {
+  return `${iso.slice(0, 4)}-01-01`;
+}
+
+export function daysInMonth(iso) {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+export function addMonths(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1 + n, 1);
+  // Clamp to the last day when the target month is shorter.
+  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(d, last));
+  return toISO(date);
+}
+
 export function daysBetween(fromIso, toIso) {
   const ms = fromISO(toIso) - fromISO(fromIso);
   return Math.round(ms / 86400000);

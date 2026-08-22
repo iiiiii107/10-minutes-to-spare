@@ -79,6 +79,46 @@ describe('generateInstances', () => {
   });
 });
 
+describe('monthly and yearly frequencies', () => {
+  function periodTask(id, count, period) {
+    return { id, name: id, count, period, categoryId: 'c1', active: true };
+  }
+
+  it('spreads a monthly task across the month, not the week', () => {
+    const out = generateInstances([periodTask('t1', 2, 'month')], [], '2026-08-01', settings);
+    const august = out.filter((i) => i.scheduledDate.startsWith('2026-08'));
+    expect(august).toHaveLength(2);
+    // the 1st and the middle of a 31-day month
+    expect(august.map((i) => i.scheduledDate)).toEqual(['2026-08-01', '2026-08-17']);
+  });
+
+  it('spreads a yearly task across months', () => {
+    const out = generateInstances([periodTask('t1', 4, 'year')], [], '2026-01-01', settings);
+    const thisYear = out.filter((i) => i.scheduledDate.startsWith('2026'));
+    expect(thisYear).toHaveLength(4);
+    expect(thisYear.map((i) => i.scheduledDate.slice(5, 7))).toEqual(['01', '04', '07', '10']);
+  });
+
+  it('handles once a year', () => {
+    const out = generateInstances([periodTask('t1', 1, 'year')], [], '2026-03-05', settings);
+    expect(out.filter((i) => i.scheduledDate.startsWith('2026'))).toHaveLength(0);
+    expect(out.some((i) => i.scheduledDate === '2027-01-01')).toBe(true);
+  });
+
+  it('is idempotent across periods', () => {
+    const tasks = [periodTask('t1', 2, 'month'), periodTask('t2', 3, 'year')];
+    const once = generateInstances(tasks, [], '2026-08-01', settings);
+    const twice = generateInstances(tasks, once, '2026-08-01', settings);
+    expect(twice).toHaveLength(once.length);
+  });
+
+  it('still treats a legacy timesPerWeek task as weekly', () => {
+    const out = generateInstances([task('t1', 2)], [], MONDAY, settings);
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.some((i) => i.scheduledDate === MONDAY)).toBe(true);
+  });
+});
+
 describe('paused tasks', () => {
   it('schedules nothing while a task is paused', () => {
     const paused = { ...task('t1', 7), pausedUntil: '2026-08-24' };
