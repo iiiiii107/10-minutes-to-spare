@@ -1,4 +1,5 @@
 import { clear, el } from '../lib/dom.js';
+import { fromISO } from '../lib/dates.js';
 import { store } from '../lib/store.js';
 import {
   busiestCategory, completedThisMonth, completedTotal, currentStreak,
@@ -54,7 +55,7 @@ export function renderStats(root) {
   );
 
   if (total === 0) {
-    root.append(card);
+    root.append(card, archiveCard());
     return;
   }
 
@@ -107,5 +108,46 @@ export function renderStats(root) {
     card.append(el('div', { class: 'stat-grid', style: 'margin-top:20px' }, extras));
   }
 
-  root.append(card);
+  root.append(card, archiveCard());
+}
+
+/**
+ * Pages that have been torn off. Kept purely as a record — the numbers above
+ * count every completion whether its page was torn or not.
+ */
+function archiveCard() {
+  const pages = store.archivedPages();
+  if (!pages.length) return null;
+
+  const card = el('div', { class: 'card paper' }, [
+    el('div', { class: 'section-head' }, [
+      el('h2', { text: 'Torn pages' }),
+      el('span', { class: 'sub', text: 'the pad you have worked through' }),
+    ]),
+  ]);
+
+  for (const page of pages.slice(0, 24)) {
+    card.append(
+      el('div', { class: 'archive-page' }, [
+        el('div', { class: 'archive-head' }, [
+          el('span', { text: page.label ? page.label[0].toUpperCase() + page.label.slice(1) : page.key }),
+          el('span', {
+            class: 'archive-when',
+            text: fromISO(page.tornAt.slice(0, 10)).toLocaleDateString(undefined, {
+              day: 'numeric', month: 'short', year: 'numeric',
+            }),
+          }),
+        ]),
+        el(
+          'div',
+          { class: 'archive-items' },
+          page.items.slice(0, 20).map((item) =>
+            el('span', { class: 'archive-item', style: `--task:${item.color}`, text: item.name }),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  return card;
 }

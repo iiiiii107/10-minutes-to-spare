@@ -7,46 +7,64 @@ import {
 
 /* Tearing a page off.
 
-   A finished day can be torn away like a sheet from a desk pad. When the last
-   day of a week is finished and nothing is left outstanding anywhere in that
-   week, the whole week can go; same for a month. The torn edge is a real
-   ragged line — one random path per tear, so no two look identical. */
+   The heading stays put and everything below it rips away downward, the way
+   you'd tear the written part off a pad and leave the header behind. One
+   ragged line is generated per tear and used twice — as the underside of the
+   piece that stays and the top of the piece that falls — so both halves share
+   the same rip. Underneath is the next page, fresh and blank.
 
-/** Height of the ragged strip, in px. */
-const TEETH_HEIGHT = 14;
+   A torn page isn't final. If a new task turns up for that day, the page is
+   restored and can be torn again. Every tear is kept in the archive; the
+   stats count completions either way. */
+
+/** Depth of the ragged strip, in px. */
+const TEETH = 12;
 
 /** How far you have to pull before it lets go. */
-const TEAR_THRESHOLD = 90;
+const TEAR_THRESHOLD = 80;
 
-/** A ragged edge, generated fresh so each tear looks hand-torn. */
-function tornEdgePath(width, seed = Math.random) {
+/* ---------- the ragged line ---------- */
+
+/** One rip, as a list of [xPercent, yPx] points across the width. */
+function ripPoints() {
   const points = [];
-  const step = 11;
-  for (let x = 0; x <= width; x += step) {
-    points.push([x, 3 + seed() * (TEETH_HEIGHT - 6)]);
+  const steps = 26;
+  for (let i = 0; i <= steps; i += 1) {
+    points.push([(i / steps) * 100, 2 + Math.random() * (TEETH - 4)]);
   }
-  const line = points.map(([x, y], i) => `${i ? 'L' : 'M'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
-  return `${line} L ${width} ${TEETH_HEIGHT} L 0 ${TEETH_HEIGHT} Z`;
+  return points;
 }
 
-function tornEdge(width) {
+/** The falling piece is clipped so its top edge is the rip. */
+function clipBelow(points) {
+  const top = points.map(([x, y]) => `${x.toFixed(1)}% ${y.toFixed(1)}px`).join(', ');
+  return `polygon(${top}, 100% 100%, 0% 100%)`;
+}
+
+/** The staying piece gets a paper strip shaped to the same rip. */
+function stubEdge(points) {
+  const width = 100;
+  const line = points
+    .map(([x, y], i) => `${i ? 'L' : 'M'} ${((x / 100) * width).toFixed(2)} ${y.toFixed(2)}`)
+    .join(' ');
   return svg('svg', {
-    class: 'tear-edge',
-    viewBox: `0 0 ${width} ${TEETH_HEIGHT}`,
+    class: 'tear-stub-edge',
+    viewBox: `0 0 ${width} ${TEETH}`,
     preserveAspectRatio: 'none',
     'aria-hidden': 'true',
-  }, [svg('path', { d: tornEdgePath(width), fill: 'var(--paper)' })]);
+  }, [svg('path', { d: `M 0 0 L ${width} 0 ${line.slice(1)} Z`, fill: 'var(--paper)' })]);
 }
 
 /* ---------- what can be torn ---------- */
 
 function dayFinished(date) {
-  const pending = instancesForDate(store.state.instances, date);
-  const done = completedOnDate(store.state.instances, date);
-  return pending.length === 0 && done.length > 0;
+  return (
+    instancesForDate(store.state.instances, date).length === 0 &&
+    completedOnDate(store.state.instances, date).length > 0
+  );
 }
 
-/** Every day in a range is either finished or had nothing scheduled at all. */
+/** Every day in a range is finished, or had nothing scheduled at all. */
 function rangeFinished(from, to) {
   let anyDone = false;
   for (let date = from; date <= to; date = addDays(date, 1)) {
@@ -56,68 +74,100 @@ function rangeFinished(from, to) {
   return anyDone;
 }
 
+function weekBounds(today) {
+  const start = startOfWeek(today, store.state.settings.weekStartsOn ?? 1);
+  return [start, addDays(start, 6)];
+}
+
+function monthBounds(today) {
+  const start = startOfMonth(today);
+  return [start, addDays(addMonths(start, 1), -1)];
+}
+
 /**
- * The biggest thing available to tear right now, or null.
- * A month beats a week beats a day, so finishing the last day of a month
- * offers the month rather than making you tear three times.
+ * A page that was torn but has work on it again comes back. Called before
+ * rendering, so adding a task to a finished day puts its page back.
+ */
+export function refreshTorn(today = todayISO()) {
+  const checks = [
+    ['day', today, today, today],
+    ['week', ...weekBounds(today).slice(0, 1), ...weekBounds(today)],
+    ['month', ...monthBounds(today).slice(0, 1), ...monthBounds(today)],
+  ];
+
+  let changed = false;
+  for (const [kind, key, from, to] of checks) {
+    if (!store.isTorn(kind, key)) continue;
+    let hasWork = false;
+    for (let date = from; date <= to; date = addDays(date, 1)) {
+      if (instancesForDate(store.state.instances, date).length) { hasWork = true; break; }
+    }
+    if (hasWork) {
+      store.untear(kind, key);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/**
+ * The biggest thing available to tear, or null. A month beats a week beats a
+ * day, so finishing a month offers the month rather than three separate tears.
  */
 export function tearable(today = todayISO()) {
-  const weekStartsOn = store.state.settings.weekStartsOn ?? 1;
-
-  const monthStart = startOfMonth(today);
-  const monthEnd = addDays(addMonths(monthStart, 1), -1);
-  if (
-    today === monthEnd &&
-    !store.isTorn('month', monthStart) &&
-    rangeFinished(monthStart, monthEnd)
-  ) {
+  const [monthStart, monthEnd] = monthBounds(today);
+  if (today === monthEnd && !store.isTorn('month', monthStart) && rangeFinished(monthStart, monthEnd)) {
     return {
       kind: 'month',
       key: monthStart,
+      from: monthStart,
+      to: monthEnd,
       label: fromISO(monthStart).toLocaleDateString(undefined, { month: 'long' }),
-      note: 'a whole month, done',
     };
   }
 
-  const weekStart = startOfWeek(today, weekStartsOn);
-  const weekEnd = addDays(weekStart, 6);
-  if (
-    today === weekEnd &&
-    !store.isTorn('week', weekStart) &&
-    rangeFinished(weekStart, weekEnd)
-  ) {
+  const [weekStart, weekEnd] = weekBounds(today);
+  if (today === weekEnd && !store.isTorn('week', weekStart) && rangeFinished(weekStart, weekEnd)) {
     return {
       kind: 'week',
       key: weekStart,
-      label: `${formatShort(weekStart)} – ${formatShort(weekEnd)}`,
-      note: 'the whole week, done',
+      from: weekStart,
+      to: weekEnd,
+      label: `the week of ${formatShort(weekStart)}`,
     };
   }
 
   if (!store.isTorn('day', today) && dayFinished(today)) {
-    return { kind: 'day', key: today, label: 'Today', note: 'all done' };
+    return { kind: 'day', key: today, from: today, to: today, label: 'today' };
   }
 
   return null;
 }
 
-/* ---------- the tear itself ---------- */
+/** True when this page has already been torn and nothing has come back. */
+export function isTornNow(today = todayISO()) {
+  const [monthStart] = monthBounds(today);
+  const [weekStart] = weekBounds(today);
+  return (
+    store.isTorn('day', today) ||
+    store.isTorn('week', weekStart) ||
+    store.isTorn('month', monthStart)
+  );
+}
+
+/* ---------- the tear ---------- */
 
 /**
- * Wraps a card so it can be pulled downward and torn off.
- * @param {HTMLElement} card the sheet being torn
+ * @param {HTMLElement} page the part that rips away
  * @param {object} target from tearable()
- * @param {() => void} onTorn called once the sheet has gone
+ * @param {() => void} onTorn
+ * @returns {HTMLElement} the zone to put where the page was
  */
-export function makeTearable(card, target, onTorn) {
-  const wrap = el('div', { class: 'tear-wrap' });
-  card.replaceWith(wrap);
+export function makeTearZone(page, target, onTorn) {
+  const points = ripPoints();
 
-  const sheet = el('div', { class: 'tear-sheet' }, [card]);
-  const stub = el('div', { class: 'tear-stub' }, [
-    el('span', { class: 'tear-stub-text', text: target.note }),
-  ]);
-
+  const fresh = el('div', { class: 'tear-fresh', 'aria-hidden': 'true' });
+  const sheet = el('div', { class: 'tear-page' }, [page]);
   const grip = el('div', {
     class: 'tear-grip',
     role: 'button',
@@ -125,27 +175,29 @@ export function makeTearable(card, target, onTorn) {
     'aria-label': `Tear off ${target.label}`,
   }, [
     el('span', { class: 'tear-grip-line', 'aria-hidden': 'true' }),
-    el('span', { class: 'tear-grip-text', text: `Tear off ${target.label.toLowerCase()}` }),
+    el('span', { class: 'tear-grip-text', text: `Tear off ${target.label}` }),
   ]);
 
-  wrap.append(stub, sheet, grip);
+  const zone = el('div', { class: 'tear-zone' }, [fresh, sheet, grip]);
 
   let pulling = false;
   let startY = 0;
   let offset = 0;
-  let edge = null;
+  let ripping = false;
 
-  function showEdge() {
-    if (edge) return;
-    edge = tornEdge(Math.round(sheet.getBoundingClientRect().width) || 320);
-    sheet.append(edge);
-    sheet.classList.add('tearing');
+  function beginRip() {
+    if (ripping) return;
+    ripping = true;
+    // The same rip, used on both halves.
+    sheet.style.clipPath = clipBelow(points);
+    zone.prepend(stubEdge(points));
+    zone.classList.add('ripping');
   }
 
   function setOffset(value) {
     offset = Math.max(0, value);
-    sheet.style.transform = `translateY(${offset}px) rotate(${offset * 0.012}deg)`;
-    grip.style.opacity = String(Math.max(0, 1 - offset / 60));
+    sheet.style.transform = `translateY(${offset}px) rotate(${offset * 0.01}deg)`;
+    grip.style.opacity = String(Math.max(0, 1 - offset / 50));
   }
 
   function finish() {
@@ -153,9 +205,9 @@ export function makeTearable(card, target, onTorn) {
     grip.remove();
     confetti(['var(--butter)', 'var(--sage)', 'var(--rust)', 'var(--ink-blue)']);
     setTimeout(() => {
-      store.tearOff(target.kind, target.key);
+      store.tearOff(target.kind, target.key, collectPage(target));
       onTorn?.();
-    }, 620);
+    }, 640);
   }
 
   function release() {
@@ -163,20 +215,25 @@ export function makeTearable(card, target, onTorn) {
     pulling = false;
     if (offset >= TEAR_THRESHOLD) {
       finish();
-    } else {
-      sheet.classList.remove('tearing');
-      sheet.style.transition = 'transform .3s ease';
-      setOffset(0);
-      setTimeout(() => { sheet.style.transition = ''; edge?.remove(); edge = null; }, 320);
-      grip.style.opacity = '';
+      return;
     }
+    sheet.style.transition = 'transform .3s ease';
+    setOffset(0);
+    setTimeout(() => {
+      sheet.style.transition = '';
+      sheet.style.clipPath = '';
+      zone.querySelector('.tear-stub-edge')?.remove();
+      zone.classList.remove('ripping');
+      ripping = false;
+      grip.style.opacity = '';
+    }, 320);
   }
 
   grip.addEventListener('pointerdown', (event) => {
     pulling = true;
     startY = event.clientY;
     capturePointer(grip, event.pointerId);
-    showEdge();
+    beginRip();
     event.preventDefault();
   });
 
@@ -188,13 +245,13 @@ export function makeTearable(card, target, onTorn) {
   grip.addEventListener('pointerup', release);
   grip.addEventListener('pointercancel', release);
 
-  // Keyboard and plain clicks get the same result without the drag.
+  // Clicking or pressing Enter does the same without the drag.
   grip.addEventListener('click', () => {
     if (offset > 0) return;
-    showEdge();
-    sheet.style.transition = 'transform .25s ease';
-    setOffset(TEAR_THRESHOLD);
-    setTimeout(finish, 260);
+    beginRip();
+    sheet.style.transition = 'transform .28s ease';
+    setOffset(TEAR_THRESHOLD + 10);
+    setTimeout(finish, 280);
   });
   grip.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -203,5 +260,24 @@ export function makeTearable(card, target, onTorn) {
     }
   });
 
-  return wrap;
+  return zone;
+}
+
+/** What went on the page, so the archive can show it later. */
+function collectPage(target) {
+  const items = [];
+  for (let date = target.from; date <= target.to; date = addDays(date, 1)) {
+    for (const instance of completedOnDate(store.state.instances, date)) {
+      const task = store.taskById(instance.taskId);
+      if (task) items.push({ name: task.name, color: task.color, date });
+    }
+  }
+  return { kind: target.kind, key: target.key, label: target.label, items };
+}
+
+/** A clean sheet, shown once the page above it has come away. */
+export function freshPage() {
+  return el('div', { class: 'fresh-page' }, [
+    el('span', { class: 'fresh-page-note', text: 'a clean page' }),
+  ]);
 }

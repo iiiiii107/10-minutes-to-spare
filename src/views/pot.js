@@ -67,35 +67,53 @@ function toolArt(id) {
   ]);
 }
 
-/** A single tool, sitting in the cup or lifted out of it. */
-function toolButton(id, active, onPick) {
-  return el('button', {
+/**
+ * A tool standing in the cup. You pull it out and drag it across a task —
+ * there's no separate "held" tool that appears elsewhere; the thing you drag
+ * is the thing in the pot.
+ */
+function toolButton(id, onDragStart, index) {
+  const node = el('div', {
     class: 'pot-tool',
-    role: 'radio',
-    'aria-checked': String(id === active),
-    'aria-label': TOOLS[id].label,
-    title: TOOLS[id].label,
-    dataset: { tool: id },
-    onClick: () => onPick(id),
+    role: 'button',
+    tabindex: '0',
+    'aria-label': `${TOOLS[id].label} — drag onto a task`,
+    title: `${TOOLS[id].label} — drag onto a task`,
+    dataset: { tool: id, slot: String(index) },
   }, [
     svg('svg', { viewBox: '0 0 32 64', fill: 'none', 'aria-hidden': 'true' }, [toolArt(id)]),
     el('span', { class: 'pot-label', text: TOOLS[id].label }),
   ]);
+
+  node.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    onDragStart(id, event, node);
+  });
+
+  return node;
 }
 
-/** The cup, outlined, drawn in front of the tools. */
+/**
+ * Only the front wall of the cup. Drawing the far rim as well made it read as
+ * a closed, empty pot with the tools stuck behind it; with just the near rim
+ * the tools rise out of it the way they actually would.
+ */
 function cupArt() {
   return svg('svg', {
-    class: 'pot-cup', viewBox: '0 0 120 64', fill: 'none', 'aria-hidden': 'true',
+    class: 'pot-cup', viewBox: '0 0 120 60', fill: 'none', 'aria-hidden': 'true',
   }, [
     svg('path', {
-      d: 'M9 11 L9 50 C9 57 32 62 60 62 C88 62 111 57 111 50 L111 11',
+      d: [
+        'M9 8',
+        'C9 17 32 22 60 22',      // near rim, dipping through the middle
+        'C88 22 111 17 111 8',
+        'L111 42',
+        'C111 51 88 56 60 56',    // rounded base
+        'C32 56 9 51 9 42',
+        'Z',
+      ].join(' '),
       fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '3.2',
-      'stroke-linejoin': 'round', 'stroke-linecap': 'round',
-    }),
-    svg('ellipse', {
-      cx: '60', cy: '11', rx: '51', ry: '9',
-      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '3.2',
+      'stroke-linejoin': 'round',
     }),
   ]);
 }
@@ -106,16 +124,15 @@ export function toolSvg(id) {
 }
 
 /**
- * @param {string|null} active current tool id
- * @param {(id: string) => void} onPick
+ * @param {(id: string, event: PointerEvent, node: HTMLElement) => void} onDragStart
  * @param {boolean} compact phone layout — a flat row instead of a cup
  */
-export function penPot(active, onPick, compact = false) {
+export function penPot(onDragStart, compact = false) {
   if (compact) {
     return el(
       'div',
-      { class: 'pot pot-compact', role: 'radiogroup', 'aria-label': 'Pick a tool' },
-      TOOL_ORDER.map((id) => toolButton(id, active, onPick)),
+      { class: 'pot pot-compact', 'aria-label': 'Tools' },
+      TOOL_ORDER.map((id, i) => toolButton(id, onDragStart, i)),
     );
   }
 
@@ -123,8 +140,8 @@ export function penPot(active, onPick, compact = false) {
     el('div', { class: 'pot-stage' }, [
       el(
         'div',
-        { class: 'pot', role: 'radiogroup', 'aria-label': 'Pick a tool' },
-        TOOL_ORDER.map((id) => toolButton(id, active, onPick)),
+        { class: 'pot', 'aria-label': 'Tools' },
+        TOOL_ORDER.map((id, i) => toolButton(id, onDragStart, i)),
       ),
       cupArt(),
     ]),

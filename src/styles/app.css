@@ -120,14 +120,14 @@ body[data-view="settings"]   { --accent: var(--sage); }
 /* ---------- layout ---------- */
 
 /* Bottom padding clears the fixed bottom bar on phones. */
-.app { max-width: 940px; margin: 0 auto; padding: 0 20px calc(104px + env(safe-area-inset-bottom)); }
-@media (min-width: 720px) { .app { padding-bottom: 100px; } }
+.app { max-width: 940px; margin: 0 auto; padding: 0 14px calc(92px + env(safe-area-inset-bottom)); }
+@media (min-width: 720px) { .app { padding-bottom: 40px; } }
 
 /* ---------- masthead ----------
    A centred wordmark on a pinstriped panel, with small pills underneath
    carrying the date and the day's progress. */
 
-.masthead { padding: 18px 20px 0; }
+.masthead { padding: 10px 14px 0; }
 
 .masthead-panel {
   position: relative;
@@ -155,11 +155,11 @@ body[data-view="settings"]   { --accent: var(--sage); }
   /* Side padding keeps the wordmark clear of the clock button in the corner.
      A fixed minimum keeps the panel the same height whether it's showing the
      wordmark or the clock, so toggling doesn't jolt the page. */
-  padding: 26px 58px 22px;
-  min-height: 132px; justify-content: center;
+  padding: 18px 56px 16px;
+  min-height: 104px; justify-content: center;
   text-align: center;
 }
-@media (min-width: 720px) { .masthead-inner { min-height: 150px; } }
+@media (min-width: 720px) { .masthead-inner { min-height: 120px; } }
 .masthead-inner .wordmark { text-wrap: balance; }
 
 /* ---------- clock ----------
@@ -210,8 +210,8 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .marquee {
   background: var(--band);
   border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
-  overflow: hidden; white-space: nowrap; padding: 8px 0;
-  margin: 20px 0;
+  overflow: hidden; white-space: nowrap; padding: 7px 0;
+  margin: 12px 0;
 }
 .marquee-track { display: inline-block; animation: slide 38s linear infinite; }
 .marquee span {
@@ -246,9 +246,9 @@ body[data-view="settings"]   { --accent: var(--sage); }
 
 @media (min-width: 720px) {
   .nav {
-    position: static; max-width: 940px; margin: 0 auto 22px;
+    position: static; max-width: 940px; margin: 0 auto 14px;
     grid-auto-columns: 1fr;
-    padding: 0 20px;
+    padding: 0 14px;
     background: none; backdrop-filter: none; border-top: none; box-shadow: none;
   }
   .nav-tab { flex-direction: row; gap: 8px; font-size: 13px; padding: 11px 18px; }
@@ -469,16 +469,16 @@ body[data-view="settings"]   { --accent: var(--sage); }
 
 /* ---------- cards / sections ---------- */
 
-.card { padding: 20px; }
-.card + .card { margin-top: 18px; }
-.section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card { padding: 16px; }
+.card + .card { margin-top: 14px; }
+.section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .section-head h2 { font-size: 22px; }
 .section-head .sub { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 
-.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
 
 .empty {
-  text-align: center; padding: 40px 20px;
+  text-align: center; padding: 26px 16px;
   font-family: var(--font-display); font-style: italic; font-size: 17px; color: var(--muted);
 }
 .empty .hint { font-family: var(--font-body); font-style: normal; font-size: 13px; margin-top: 10px; }
@@ -525,90 +525,94 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .cat-title { font-size: 19px; flex: 1; min-width: 0; }
 
 /* ---------- the board ----------
-   On a computer the pot stands to the right of the sheet. The second column
-   only exists when the pot does — otherwise the calendar gets squeezed into
-   the pot's width. */
+   The sheet always spans the full column. The pot sits *outside* it, in the
+   margin the page already has, so nothing is given up to make room for it.
+   Below the width where that margin exists, the compact row on the card is
+   the pot instead. */
 
-.board { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.board { position: relative; }
 .board-side { display: none; }
 
-@media (min-width: 900px) {
-  .board-with-pot { grid-template-columns: 1fr 168px; align-items: start; }
+@media (min-width: 1180px) {
   .board-with-pot .board-side {
-    display: block; position: sticky; top: 14px;
+    display: block;
+    position: absolute; left: 100%; top: 0; margin-left: 18px;
   }
 }
 
 /* ---------- pen pot ----------
-   A line-art cup with the tools standing in it. The cup is painted over the
-   tools, so they read as sitting inside; the chosen one lifts clear. */
+   A line-art cup with the tools standing in it. Every tool is placed at an
+   exact slot rather than flowing, so the arrangement can't collapse at any
+   width; the cup is painted over their feet so they sit inside it. */
 
 .pot-shell { display: flex; justify-content: center; }
-/* The cup is 64px tall and sits flush at the bottom. The tools' feet stop
-   44px up, so they overlap the cup by 20px and stand clear of its rim. */
-.pot-stage { position: relative; width: 156px; padding-bottom: 46px; }
-.pot {
-  display: flex; align-items: flex-end; justify-content: center;
-  gap: 3px; padding: 0 14px;
-}
+.pot-stage { position: relative; width: 156px; height: 160px; }
+.pot { position: absolute; inset: 0; }
+
 .pot-tool {
-  flex: 1 1 0; min-width: 0; position: relative; z-index: 1;
-  border: none; background: none; cursor: pointer; padding: 0;
-  display: flex; flex-direction: column; align-items: center;
-  transform: translateY(4px);
+  position: absolute; bottom: 52px;
+  width: 32px; height: 70px;
+  border: none; background: none; padding: 0;
+  cursor: grab; touch-action: none;
   transition: transform .2s cubic-bezier(.3, 1.5, .5, 1);
 }
-.pot-tool svg { width: 100%; max-width: 32px; height: auto; display: block; }
-.pot-tool:hover { transform: translateY(-6px); }
-/* the tool in hand stands clear of the cup */
-.pot-tool[aria-checked="true"] { transform: translateY(-18px); }
+.pot-tool svg { width: 100%; height: 100%; display: block; }
+.pot-tool:hover { transform: translateY(-8px); }
+.pot-tool:active, .pot-tool.lifted { cursor: grabbing; transform: translateY(-14px); }
+
+/* Fixed slots, each leaning a little differently so it looks packed by hand. */
+.pot-tool[data-slot="0"] { left: 12px;  transform: rotate(-7deg); }
+.pot-tool[data-slot="1"] { left: 44px;  transform: rotate(-2deg); }
+.pot-tool[data-slot="2"] { left: 76px;  transform: rotate(3deg); }
+.pot-tool[data-slot="3"] { left: 108px; transform: rotate(8deg); }
+.pot-tool[data-slot="0"]:hover { transform: rotate(-7deg) translateY(-8px); }
+.pot-tool[data-slot="1"]:hover { transform: rotate(-2deg) translateY(-8px); }
+.pot-tool[data-slot="2"]:hover { transform: rotate(3deg) translateY(-8px); }
+.pot-tool[data-slot="3"]:hover { transform: rotate(8deg) translateY(-8px); }
 
 .pot-label {
-  position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
   font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--muted); white-space: nowrap;
   opacity: 0; transition: opacity .18s; pointer-events: none;
 }
-.pot-tool[aria-checked="true"] .pot-label,
 .pot-tool:hover .pot-label { opacity: 1; }
 
 .pot-cup {
   position: absolute; left: 0; right: 0; bottom: 0;
-  width: 100%; height: 70px; z-index: 2; pointer-events: none;
+  width: 100%; height: 72px; z-index: 2; pointer-events: none;
   filter: drop-shadow(0 6px 10px var(--shadow-2));
 }
 
 /* the phone version: a flat row of the same four */
-.pot-compact { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pot-compact {
+  position: static; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
 .pot-compact .pot-tool {
-  flex: 0 0 auto; transform: none;
+  position: static; width: auto; height: auto; transform: none;
   padding: 4px 10px 4px 6px; border-radius: 8px;
-  flex-direction: row; gap: 5px; align-items: center;
+  display: flex; flex-direction: row; gap: 5px; align-items: center;
   background: color-mix(in srgb, var(--paper) 70%, transparent);
   box-shadow: 0 2px 0 var(--hair-strong);
 }
-.pot-compact .pot-tool:hover { transform: none; }
-.pot-compact .pot-tool svg { width: 14px; }
+.pot-compact .pot-tool:hover,
+.pot-compact .pot-tool.lifted { transform: none; }
+.pot-compact .pot-tool svg { width: 13px; height: 26px; }
 .pot-compact .pot-label {
   position: static; transform: none; opacity: 1; font-size: 9.5px;
 }
-.pot-compact .pot-tool[aria-checked="true"] {
-  background: var(--btn-face); box-shadow: 0 2px 0 var(--btn-edge);
-}
-.pot-compact .pot-tool[aria-checked="true"] .pot-label { color: var(--btn-text); }
 @media (min-width: 900px) { .pot-compact { display: none; } }
 
-/* ---------- the held tool ---------- */
+/* ---------- the dragged tool ---------- */
 
 .hand-tool {
-  position: absolute; width: 24px; height: 52px; z-index: 40;
-  cursor: grab; touch-action: none;
-  transform: rotate(11deg); transform-origin: 50% 90%;
-  filter: drop-shadow(2px 4px 4px var(--shadow-2));
-  overflow: visible;
+  position: fixed; width: 26px; height: 54px; z-index: 90;
+  pointer-events: none;
+  transform: rotate(10deg); transform-origin: 50% 90%;
+  filter: drop-shadow(3px 5px 5px var(--shadow-2));
 }
 .hand-tool svg { width: 100%; height: 100%; }
-.hand-tool.drawing { cursor: grabbing; }
+.hand-tool.returning { opacity: 0; transition: opacity .18s; }
 
 /* Marks live on the task row — the row is the canvas. */
 .ink {
@@ -808,63 +812,95 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
 
 /* ---------- tearing a page off ----------
-   The sheet sits over a stub. Pulling the grip drags the sheet down and
-   reveals a ragged edge along its bottom; past the threshold it lifts away
-   and the stub is what's left on the pad. */
+   The heading stays; everything below it rips away downward. The falling
+   piece is clipped along the rip, and a paper strip shaped to the same rip
+   gives the piece that stays a ragged underside — so both halves share one
+   tear. The clean sheet waits underneath. */
 
-.tear-wrap { position: relative; }
-.tear-stub {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--paper) 55%, transparent);
-  border: 1px dashed var(--hair-strong);
-}
-.tear-stub-text {
-  font-family: var(--font-display); font-style: italic;
-  font-size: 17px; color: var(--muted);
-}
-.tear-sheet { position: relative; z-index: 2; will-change: transform; }
-.tear-sheet.tearing .card { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.tear-zone { position: relative; padding-bottom: 4px; }
 
-.tear-edge {
-  position: absolute; left: 0; right: 0; bottom: -13px;
-  width: 100%; height: 14px;
-  filter: drop-shadow(0 2px 1px var(--shadow-1));
+/* the ragged underside of the part that stays put */
+.tear-stub-edge {
+  position: absolute; top: 0; left: 0; right: 0;
+  width: 100%; height: 12px; z-index: 3; pointer-events: none;
+  opacity: 0; transition: opacity .12s;
 }
+.tear-zone.ripping .tear-stub-edge { opacity: 1; }
 
-.tear-sheet.torn {
-  animation: tearAway .6s cubic-bezier(.4, 0, .7, .2) forwards;
+/* the clean page waiting underneath */
+.tear-fresh {
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: var(--radius-sm);
+  background:
+    repeating-linear-gradient(transparent 0 27px, var(--paper-line) 27px 28px);
+  opacity: 0; transition: opacity .2s;
+}
+.tear-zone.ripping .tear-fresh { opacity: .55; }
+
+.tear-page {
+  position: relative; z-index: 2;
+  background: var(--paper);
+  will-change: transform;
+}
+.tear-page.torn {
+  animation: tearAway .64s cubic-bezier(.36, 0, .66, .2) forwards;
   pointer-events: none;
 }
 @keyframes tearAway {
   0%   { opacity: 1; }
-  100% { opacity: 0; transform: translateY(140%) rotate(7deg); }
+  70%  { opacity: .9; }
+  100% { opacity: 0; transform: translateY(150%) rotate(5deg); }
 }
 
 .tear-grip {
-  position: relative; z-index: 3;
-  margin-top: 6px; padding: 10px 14px 4px;
+  position: relative; z-index: 4;
+  margin-top: 10px; padding: 8px 14px 2px;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   cursor: grab; touch-action: none; user-select: none;
 }
 .tear-grip:active { cursor: grabbing; }
-.tear-grip-line {
-  width: 46px; height: 4px; border-radius: 999px;
-  background: var(--hair-strong);
-}
+.tear-grip-line { width: 52px; height: 4px; border-radius: 999px; background: var(--hair-strong); }
 .tear-grip-text {
   font-family: var(--font-display); font-style: italic; font-weight: 600;
   font-size: 13.5px; color: var(--accent);
 }
 .tear-grip:hover .tear-grip-line { background: var(--accent); }
 
+/* what's left once the page has gone */
+.fresh-page {
+  min-height: 120px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(transparent 0 27px, var(--paper-line) 27px 28px);
+}
+.fresh-page-note {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 15px; color: var(--muted);
+  background: var(--paper); padding: 2px 12px;
+}
+
+/* ---------- the archive ---------- */
+
+.archive-page { border-top: 1px solid var(--hair); padding: 12px 0; }
+.archive-page:first-of-type { border-top: none; }
+.archive-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-weight: 700; font-size: 13.5px;
+}
+.archive-when { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.archive-items { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.archive-item {
+  font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+  background: color-mix(in srgb, var(--task) 20%, transparent);
+  color: var(--ink);
+}
+
 /* ---------- pausing ---------- */
 
 .pause-bar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
-  padding: 11px 16px; margin-bottom: 16px;
+  padding: 9px 14px; margin-bottom: 12px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--paper) 70%, transparent);
   border: 1px dashed var(--hair-strong);
@@ -940,7 +976,7 @@ body[data-view="settings"]   { --accent: var(--sage); }
 .done-toggle:hover { color: var(--ink); }
 
 @media (max-width: 560px) {
-  .app { padding-left: 14px; padding-right: 14px; }
+  .app { padding-left: 10px; padding-right: 10px; }
   .card { padding: 16px; }
   .day-cell { min-height: 52px; padding: 5px 2px; }
   .cal-head { gap: 8px; }

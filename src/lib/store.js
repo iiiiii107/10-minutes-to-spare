@@ -255,10 +255,30 @@ class Store extends EventTarget {
     return Boolean(this.state.torn?.[`${kind}:${key}`]);
   }
 
-  tearOff(kind, key) {
+  /** Tearing files the page in the archive; the stats are untouched. */
+  tearOff(kind, key, page) {
     if (!this.state.torn) this.state.torn = {};
     this.state.torn[`${kind}:${key}`] = new Date().toISOString();
+
+    if (page) {
+      if (!this.state.archive) this.state.archive = [];
+      // Re-tearing a restored page replaces its entry rather than doubling it.
+      const at = this.state.archive.findIndex((p) => p.kind === kind && p.key === key);
+      const entry = { ...page, tornAt: new Date().toISOString() };
+      if (at >= 0) this.state.archive[at] = entry;
+      else this.state.archive.unshift(entry);
+    }
     return this.persist();
+  }
+
+  /** A page comes back when there's work on it again. */
+  untear(kind, key) {
+    if (this.state.torn) delete this.state.torn[`${kind}:${key}`];
+    return this.persist();
+  }
+
+  archivedPages() {
+    return this.state.archive || [];
   }
 
   // ---- stickers ----------------------------------------------------------

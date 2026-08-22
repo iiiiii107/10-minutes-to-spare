@@ -3,7 +3,7 @@ import { store } from '../lib/store.js';
 import { taskDialog } from './categories.js';
 import { pausedBanner } from './pause.js';
 import { penPot, toolSvg } from './pot.js';
-import { makeTearable, tearable } from './tear.js';
+import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable } from './tear.js';
 import { TOOLS, pathFromPoints, simplify } from '../lib/tools.js';
 import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
 import {
@@ -30,7 +30,6 @@ let mode = 'day';
 let selected = todayISO();
 let anchor = todayISO();
 let mountRoot = null;
-let activeTool = null;
 
 function rerender() {
   if (mountRoot) renderToday(mountRoot);
@@ -102,24 +101,36 @@ function taskRow(instance, seed) {
   return row;
 }
 
-/* ---------- the held tool ---------- */
+/* ---------- dragging a tool out of the pot ---------- */
 
-function heldTool(surface, toolId) {
-  const hand = el('div', { class: 'hand-tool', dataset: { tool: toolId } }, [toolSvg(toolId)]);
-  surface.append(hand);
-  hand.style.left = `${Math.max(8, surface.clientWidth - 46)}px`;
-  hand.style.top = '0px';
-
+/**
+ * Pull a tool from the cup and drag it across the tasks. The dragged tool is
+ * positioned in viewport space, so it can travel from the pot on the right
+ * all the way to a row on the left.
+ */
+function startToolDrag(toolId, event, source) {
   const tool = TOOLS[toolId];
+  const rows = () => document.querySelectorAll('#view .task-row[data-instance]');
+  if (!rows().length) return;
+
+  source.classList.add('lifted');
+
+  const ghost = el('div', { class: 'hand-tool', dataset: { tool: toolId } }, [toolSvg(toolId)]);
+  document.body.append(ghost);
+
+  const place = (x, y) => {
+    ghost.style.left = `${x - GRAB_X}px`;
+    ghost.style.top = `${y - GRAB_Y}px`;
+  };
+  place(event.clientX, event.clientY);
+
   /** Points collected per row while the nib is inside it. */
   const strokes = new Map();
-  let dragging = false;
 
   function inkFor(row) {
     if (!strokes.has(row)) strokes.set(row, { points: [], path: null });
     const stroke = strokes.get(row);
     if (!stroke.path) {
-      const layer = row.querySelector('.ink');
       stroke.path = svg('path', {
         fill: 'none',
         stroke: tool.ink || getComputedStyle(row).getPropertyValue('--task').trim(),
@@ -128,12 +139,51 @@ function heldTool(surface, toolId) {
         'stroke-linecap': tool.id === 'highlighter' ? 'butt' : 'round',
         'stroke-linejoin': 'round',
       });
-      layer.append(stroke.path);
+      row.querySelector('.ink').append(stroke.path);
     }
     return stroke;
   }
 
-  function apply() {
+  function onMove(moveEvent) {
+    place(moveEvent.clientX, moveEvent.clientY);
+
+    const nibX = moveEvent.clientX + NIB_OFFSET_X;
+    const nibY = moveEvent.clientY + NIB_OFFSET_Y;
+
+    for (const row of rows()) {
+      const rect = row.getBoundingClientRect();
+      const inside =
+        nibX >= rect.left && nibX <= rect.right &&
+        nibY >= rect.top && nibY <= rect.bottom;
+      if (!inside) continue;
+
+      if (tool.erases) {
+        // The eraser wipes a task's marks off rather than leaving one.
+        const layer = row.querySelector('.ink');
+        if (layer?.childElementCount) {
+          layer.replaceChildren();
+          store.clearMarks(row.dataset.instance);
+        }
+        row.classList.remove('hand-marked');
+        continue;
+      }
+
+      const stroke = inkFor(row);
+      stroke.points.push({ x: nibX - rect.left, y: nibY - rect.top });
+      stroke.path.setAttribute('d', pathFromPoints(simplify(stroke.points)));
+    }
+  }
+
+  function onUp() {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+
+    // The tool drops back into the cup.
+    ghost.classList.add('returning');
+    setTimeout(() => ghost.remove(), 180);
+    source.classList.remove('lifted');
+
     for (const [row, stroke] of strokes) {
       if (stroke.points.length < 2) continue;
       const instanceId = row.dataset.instance;
@@ -144,8 +194,8 @@ function heldTool(surface, toolId) {
         row.classList.add('hand-marked');
         completeRow(row, instanceId, tool.ink || color, { instant: true });
       } else {
-        // Highlighter and crayon change nothing — they just leave colour on
-        // the task, and that mark is kept.
+        // Highlighter and crayon change nothing — they leave colour, and
+        // that mark is kept with the task.
         store.addMark(instanceId, {
           d: stroke.path.getAttribute('d'),
           ink: tool.ink || color,
@@ -158,55 +208,9 @@ function heldTool(surface, toolId) {
     strokes.clear();
   }
 
-  hand.addEventListener('pointerdown', (event) => {
-    dragging = true;
-    capturePointer(hand, event.pointerId);
-    hand.classList.add('drawing');
-    event.preventDefault();
-  });
-
-  hand.addEventListener('pointermove', (event) => {
-    if (!dragging) return;
-    const box = surface.getBoundingClientRect();
-    hand.style.left = `${event.clientX - box.left - GRAB_X}px`;
-    hand.style.top = `${event.clientY - box.top - GRAB_Y}px`;
-
-    const nibX = event.clientX + NIB_OFFSET_X;
-    const nibY = event.clientY + NIB_OFFSET_Y;
-
-    for (const row of surface.querySelectorAll('.task-row')) {
-      const rect = row.getBoundingClientRect();
-      const inside =
-        nibX >= rect.left && nibX <= rect.right &&
-        nibY >= rect.top && nibY <= rect.bottom;
-      if (!inside) continue;
-
-      if (tool.erases) {
-        // The eraser wipes a task's marks off rather than leaving one.
-        if (row.querySelector('.ink')?.childElementCount) {
-          row.querySelector('.ink').replaceChildren();
-          store.clearMarks(row.dataset.instance);
-        }
-        row.classList.remove('hand-marked');
-        continue;
-      }
-
-      const stroke = inkFor(row);
-      stroke.points.push({ x: nibX - rect.left, y: nibY - rect.top });
-      stroke.path.setAttribute('d', pathFromPoints(simplify(stroke.points)));
-    }
-  });
-
-  const stop = () => {
-    if (!dragging) return;
-    dragging = false;
-    hand.classList.remove('drawing');
-    apply();
-  };
-  hand.addEventListener('pointerup', stop);
-  hand.addEventListener('pointercancel', stop);
-
-  return hand;
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
 }
 
 /* ---------- done summary ---------- */
@@ -252,28 +256,28 @@ function doneSummary(date) {
   return el('div', { class: 'done-summary' }, [toggle, list]);
 }
 
-/** The working list for today: the tools, the rows, and whatever's finished. */
-function todayBody(card) {
+/**
+ * The part of the page below the heading: the tools, the rows, and whatever's
+ * finished. Returned rather than appended, because this is the piece that
+ * tears away while the heading stays put.
+ */
+function todayBody() {
   const date = todayISO();
   const pending = instancesForDate(store.state.instances, date);
+  const card = el('div', { class: 'today-body' });
 
-  if (!store.state.tasks.length) return;
+  if (!store.state.tasks.length) return card;
 
   if (!pending.length) {
     card.append(el('div', { class: 'empty' }, ['All clear for today ✦']));
   } else {
     const surface = el('div', { class: 'pen-surface' });
 
-    // On a phone the pot is a small row above the list rather than a jar.
+    // On a phone the pot is a flat row above the list rather than a cup.
     surface.append(
       el('div', { class: 'pen-bar' }, [
-        penPot(activeTool, pickTool, true),
-        el('span', {
-          class: 'pen-hint',
-          text: activeTool
-            ? `Drag the ${TOOLS[activeTool].label.toLowerCase()} across a task.`
-            : 'Tap a box, or pick up a tool.',
-        }),
+        penPot(startToolDrag, true),
+        el('span', { class: 'pen-hint', text: 'Tap a box, or drag a tool across a task.' }),
       ]),
     );
 
@@ -283,16 +287,11 @@ function todayBody(card) {
     });
 
     card.append(surface);
-    if (activeTool) heldTool(surface, activeTool);
   }
 
   const summary = doneSummary(date);
   if (summary) card.append(summary);
-}
-
-function pickTool(id) {
-  activeTool = activeTool === id ? null : id;
-  rerender();
+  return card;
 }
 
 /* ---------- navigation ---------- */
@@ -323,6 +322,8 @@ export function renderToday(root) {
   mountRoot = root;
   clear(root);
   store.refreshSchedule();
+  // A page with work on it again comes back before anything is drawn.
+  refreshTorn();
 
   const today = todayISO();
   const isToday = mode === 'day' && selected === today;
@@ -375,7 +376,14 @@ export function renderToday(root) {
   } else if (mode === 'week') {
     card.append(weekGrid(anchor, selected, selectDay), monthLegend(anchor));
   } else if (isToday) {
-    todayBody(card);
+    // A torn page shows a clean sheet until something turns up again.
+    if (isTornNow(today)) {
+      card.append(freshPage());
+    } else {
+      const body = todayBody();
+      const target = tearable(today);
+      card.append(target ? makeTearZone(body, target, () => rerender()) : body);
+    }
   } else {
     card.append(
       dayList(selected),
@@ -395,14 +403,8 @@ export function renderToday(root) {
   const showPot = isToday && store.state.tasks.length > 0;
   const board = el('div', { class: `board${showPot ? ' board-with-pot' : ''}` }, [
     el('div', { class: 'board-main' }, [card]),
-    showPot ? el('aside', { class: 'board-side' }, [penPot(activeTool, pickTool)]) : null,
+    showPot ? el('aside', { class: 'board-side' }, [penPot(startToolDrag)]) : null,
   ]);
 
   root.append(board);
-
-  // A finished day, week or month can be pulled off the pad.
-  if (isToday) {
-    const target = tearable(today);
-    if (target) makeTearable(card, target, () => rerender());
-  }
 }
