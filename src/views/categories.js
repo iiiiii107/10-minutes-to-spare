@@ -1,6 +1,8 @@
 import { clear, clear as clearNode, el, modal, toast } from '../lib/dom.js';
 import { store, TASK_COLORS } from '../lib/store.js';
-import { PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency } from '../lib/schedule.js';
+import {
+  PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency, slotLabel,
+} from '../lib/schedule.js';
 
 /* Categories and the tasks inside them. Everything is editable: tap a
    category to rename it, change its emoji or colour, or delete it. */
@@ -202,6 +204,8 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
     name: existing?.name || '',
     ...(existing ? frequencyOf(existing) : { count: 2, period: 'week' }),
     color: existing?.color || category?.color || TASK_COLORS[0],
+    startTime: existing?.startTime || '',
+    duration: existing?.duration || store.state.settings.minutesPerTask || 10,
   };
 
   const nameInput = el('input', {
@@ -322,6 +326,50 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
 
   paintCounts();
 
+  /* When you mean to do it. This is for the calendar only — the task belongs
+     to the whole day and can be ticked off at any hour, so the field says so
+     rather than leaving you to wonder. */
+  const timeInput = el('input', {
+    class: 'input time-input',
+    type: 'time',
+    value: draft.startTime,
+    'aria-label': 'Time of day',
+    onInput: (event) => {
+      draft.startTime = event.target.value;
+      paintSlot();
+    },
+  });
+
+  const durationReadout = el('span', { class: 'stepper-value' });
+  const durationRow = el('div', { class: 'stepper' }, [
+    el('button', {
+      class: 'btn btn-secondary btn-sm', type: 'button', text: '−', 'aria-label': 'Shorter',
+      onClick: () => { draft.duration = Math.max(5, draft.duration - 5); paintSlot(); },
+    }),
+    durationReadout,
+    el('button', {
+      class: 'btn btn-secondary btn-sm', type: 'button', text: '+', 'aria-label': 'Longer',
+      onClick: () => { draft.duration = Math.min(240, draft.duration + 5); paintSlot(); },
+    }),
+  ]);
+
+  const slotNote = el('div', { class: 'muted' });
+  const clearSlot = el('button', {
+    class: 'btn btn-secondary btn-sm', type: 'button', text: 'No set time',
+    onClick: () => { draft.startTime = ''; timeInput.value = ''; paintSlot(); },
+  });
+
+  function paintSlot() {
+    const label = slotLabel({ startTime: draft.startTime, duration: draft.duration }, {});
+    durationReadout.textContent = `${draft.duration} min`;
+    durationRow.hidden = !label;
+    clearSlot.hidden = !label;
+    slotNote.textContent = label
+      ? `${label} in your calendar. You can still tick it off any time that day.`
+      : 'No set time — it just belongs to the day.';
+  }
+  paintSlot();
+
   const body = el('div', {}, [
     el('div', { class: 'field' }, [el('label', { text: 'Task' }), nameInput]),
     categorySelect
@@ -335,6 +383,11 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
       periodRow,
       el('div', { style: 'margin-top:8px' }, [countRow]),
       freqValue,
+    ]),
+    el('div', { class: 'field' }, [
+      el('label', { text: 'When' }),
+      el('div', { class: 'slot-row' }, [timeInput, durationRow, clearSlot]),
+      slotNote,
     ]),
     el('div', { class: 'field' }, [
       el('label', { text: 'Colour' }),
@@ -434,6 +487,12 @@ function categoryCard(category) {
           el('div', { class: 'task-meta' }, [
             task.pausedUntil && task.pausedUntil > new Date().toISOString().slice(0, 10)
               ? el('span', { class: 'badge moved', text: 'paused' })
+              : null,
+            slotLabel(task, store.state.settings)
+              ? el('span', {
+                  class: 'slot-badge',
+                  text: slotLabel(task, store.state.settings),
+                })
               : null,
             el('span', { class: 'freq-badge', text: shortFrequency(task) }),
             el('button', {

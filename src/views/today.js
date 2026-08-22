@@ -6,9 +6,9 @@ import { penPot, toolSvg } from './pot.js';
 import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable } from './tear.js';
 import { pathFromPoints, simplify, toolWith } from '../lib/tools.js';
 import { toolStyleDialog } from './tool-style.js';
-import { dayList, monthGrid, monthLegend, periodTitle, weekGrid } from './calendar.js';
+import { dayList, monthGrid, periodTitle, weekGrid } from './calendar.js';
 import {
-  completedOnDate, instancesForDate, shortFrequency, wasMoved,
+  completedOnDate, instancesForDate, shortFrequency, slotLabel, wasMoved,
 } from '../lib/schedule.js';
 import { currentStreak, completedTotal, milestoneFor } from '../lib/stats.js';
 import { addDays, fromISO, todayISO } from '../lib/dates.js';
@@ -69,6 +69,9 @@ function taskRow(instance, seed) {
   const task = store.taskById(instance.taskId);
   if (!task) return null;
 
+  // The slot is shown, never enforced — the row stays tickable all day.
+  const slot = slotLabel(task, store.state.settings);
+
   const row = el('div', {
     class: 'task-row',
     style: `--task:${task.color}`,
@@ -102,6 +105,7 @@ function taskRow(instance, seed) {
     ]),
     el('div', { class: 'task-meta' }, [
       wasMoved(instance) ? el('span', { class: 'badge moved', text: 'moved' }) : null,
+      slot ? el('span', { class: 'slot-badge', text: slot, title: `${slot} — for your calendar. Tick it off whenever suits.` }) : null,
       el('span', { class: 'freq-badge', text: shortFrequency(task) }),
     ]),
     ink,
@@ -319,7 +323,7 @@ function doneSummary(date) {
  */
 function todayBody() {
   const date = todayISO();
-  const pending = instancesForDate(store.state.instances, date);
+  const pending = instancesForDate(store.state.instances, date, store.state.tasks);
   const card = el('div', { class: 'today-body' });
 
   if (!store.state.tasks.length) return card;
@@ -443,9 +447,9 @@ export function renderToday(root) {
   card.append(zoomBody);
 
   if (mode === 'month') {
-    zoomBody.append(monthGrid(anchor, selected, selectDay), monthLegend(anchor));
+    zoomBody.append(monthGrid(anchor, selected, selectDay));
   } else if (mode === 'week') {
-    zoomBody.append(weekGrid(anchor, selected, selectDay), monthLegend(anchor));
+    zoomBody.append(weekGrid(anchor, selected, selectDay));
   } else if (isToday) {
     // A torn page shows a clean sheet until something turns up again.
     if (isTornNow(today)) {

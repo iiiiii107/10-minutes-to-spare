@@ -18,7 +18,7 @@ const PRESETS = [5, 10, 30];
 let mountRoot = null;
 
 function stickerDialog(date) {
-  const pending = instancesForDate(store.state.instances, date);
+  const pending = instancesForDate(store.state.instances, date, store.state.tasks);
   const customInput = el('input', {
     class: 'input',
     maxlength: '40',

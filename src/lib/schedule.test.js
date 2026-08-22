@@ -7,6 +7,10 @@ import {
   instancesForDate,
   reconcile,
   rollForward,
+  slotEnd,
+  slotLabel,
+  slotLength,
+  slotMinutes,
   weekSlots,
 } from './schedule.js';
 import { addDays, isWeekend } from './dates.js';
@@ -311,5 +315,80 @@ describe('reconcile', () => {
   it('gives an empty day when there are no tasks at all', () => {
     const { instances } = reconcile([], [], MONDAY, settings);
     expect(instancesForDate(instances, MONDAY)).toEqual([]);
+  });
+});
+
+describe('time slots', () => {
+  it('reads a slot as minutes past midnight', () => {
+    expect(slotMinutes({ startTime: '00:00' })).toBe(0);
+    expect(slotMinutes({ startTime: '09:30' })).toBe(570);
+    expect(slotMinutes({ startTime: '23:59' })).toBe(1439);
+  });
+
+  it('treats anything malformed as no slot at all', () => {
+    for (const startTime of [undefined, null, '', '9:30', '0930', '24:00', '12:60', 'lunch']) {
+      expect(slotMinutes({ startTime })).toBeNull();
+    }
+  });
+
+  it('falls back to the app-wide task length', () => {
+    expect(slotLength({ duration: 25 }, { minutesPerTask: 10 })).toBe(25);
+    expect(slotLength({}, { minutesPerTask: 10 })).toBe(10);
+    expect(slotLength({}, {})).toBe(10);
+  });
+
+  it('works out where the slot ends', () => {
+    expect(slotEnd({ startTime: '09:30', duration: 10 }, {})).toBe('09:40');
+    expect(slotEnd({ startTime: '09:55', duration: 10 }, {})).toBe('10:05');
+    expect(slotEnd({}, {})).toBeNull();
+  });
+
+  it('never runs a slot past the end of the day', () => {
+    expect(slotEnd({ startTime: '23:50', duration: 30 }, {})).toBe('23:59');
+  });
+
+  it('labels a slot for the row', () => {
+    expect(slotLabel({ startTime: '07:00', duration: 15 }, {})).toBe('07:00–07:15');
+    expect(slotLabel({ startTime: null }, {})).toBeNull();
+  });
+});
+
+describe('ordering a day', () => {
+  const DAY = '2026-08-17';
+  const inst = (id, taskId, originalDueDate) => ({
+    id, taskId, scheduledDate: DAY, originalDueDate, status: 'incomplete',
+  });
+
+  it('puts slotted tasks first, in time order', () => {
+    const tasks = [
+      { id: 'a', startTime: '17:00' },
+      { id: 'b' },
+      { id: 'c', startTime: '07:15' },
+    ];
+    const instances = [
+      inst('i-a', 'a', DAY),
+      inst('i-b', 'b', '2026-08-10'),
+      inst('i-c', 'c', DAY),
+    ];
+    expect(instancesForDate(instances, DAY, tasks).map((i) => i.id))
+      .toEqual(['i-c', 'i-a', 'i-b']);
+  });
+
+  it('orders the unslotted ones by how long they have waited', () => {
+    const tasks = [{ id: 'a' }, { id: 'b' }];
+    const instances = [
+      inst('i-a', 'a', '2026-08-15'),
+      inst('i-b', 'b', '2026-08-11'),
+    ];
+    expect(instancesForDate(instances, DAY, tasks).map((i) => i.id))
+      .toEqual(['i-b', 'i-a']);
+  });
+
+  it('keeps the old order when no tasks are passed', () => {
+    const instances = [
+      inst('i-a', 'a', '2026-08-15'),
+      inst('i-b', 'b', '2026-08-11'),
+    ];
+    expect(instancesForDate(instances, DAY).map((i) => i.id)).toEqual(['i-b', 'i-a']);
   });
 });

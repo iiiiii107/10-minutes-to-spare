@@ -19,7 +19,7 @@ function monthTint(iso) {
 }
 
 function dotsFor(date) {
-  const pending = instancesForDate(store.state.instances, date);
+  const pending = instancesForDate(store.state.instances, date, store.state.tasks);
   const done = completedOnDate(store.state.instances, date);
   const dots = el('div', { class: 'dots' });
 
@@ -92,7 +92,7 @@ export function weekGrid(anchor, selected, onSelect) {
 
 /** Read-only list for a day that isn't today. */
 export function dayList(date) {
-  const pending = instancesForDate(store.state.instances, date);
+  const pending = instancesForDate(store.state.instances, date, store.state.tasks);
   const done = completedOnDate(store.state.instances, date);
 
   if (!pending.length && !done.length) {
@@ -139,12 +139,4 @@ export function periodTitle(mode, anchor, selected) {
   const fmt = (iso) =>
     fromISO(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   return `${fmt(start)} – ${fmt(end)}`;
-}
-
-export function monthLegend(anchor) {
-  const monthName = fromISO(anchor).toLocaleDateString(undefined, { month: 'long' });
-  return el('div', { class: 'month-legend' }, [
-    el('i', { style: `background:${monthTint(anchor)}` }),
-    `${monthName} — set its colour in Settings`,
-  ]);
 }

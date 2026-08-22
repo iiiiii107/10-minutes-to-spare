@@ -249,10 +249,62 @@ export function reconcile(tasks, instances, today = todayISO(), settings = {}) {
 }
 
 /** Incomplete instances scheduled for a given day, longest-waiting first. */
-export function instancesForDate(instances, date) {
+/* ---------- time slots ----------
+
+   A slot is a note of when you mean to do something, so it can be written
+   into a calendar. It is deliberately not a deadline: the task belongs to the
+   whole day and stays tickable from midnight to midnight. Nothing in the
+   scheduling above reads it — it only decides the order of the list and what
+   goes in the calendar. */
+
+/** Minutes past midnight for 'HH:MM', or null when there's no slot. */
+export function slotMinutes(task) {
+  const at = task?.startTime;
+  if (!at || !/^\d{2}:\d{2}$/.test(at)) return null;
+  const [h, m] = at.split(':').map(Number);
+  if (h > 23 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/** How long the slot runs, falling back to the app-wide task length. */
+export function slotLength(task, settings) {
+  return Number(task?.duration) || Number(settings?.minutesPerTask) || 10;
+}
+
+/** 'HH:MM' a given number of minutes after another 'HH:MM', clamped to the day. */
+export function slotEnd(task, settings) {
+  const start = slotMinutes(task);
+  if (start == null) return null;
+  const end = Math.min(start + slotLength(task, settings), 24 * 60 - 1);
+  return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+}
+
+/** '09:30 – 09:40', for showing on a row. */
+export function slotLabel(task, settings) {
+  if (slotMinutes(task) == null) return null;
+  return `${task.startTime}–${slotEnd(task, settings)}`;
+}
+
+/**
+ * The day's outstanding work, in the order it reads best: anything with a
+ * time slot first and in time order, then everything unslotted, oldest first.
+ * @param {object[]} [tasks] needed only to read the slots; omit to keep the
+ *   plain oldest-first order.
+ */
+export function instancesForDate(instances, date, tasks) {
+  const byId = tasks ? new Map(tasks.map((t) => [t.id, t])) : null;
+  const at = (instance) => (byId ? slotMinutes(byId.get(instance.taskId)) : null);
+
   return instances
     .filter((i) => i.scheduledDate === date && i.status === 'incomplete')
-    .sort((a, b) => a.originalDueDate.localeCompare(b.originalDueDate));
+    .sort((a, b) => {
+      const sa = at(a);
+      const sb = at(b);
+      if (sa != null && sb != null && sa !== sb) return sa - sb;
+      if (sa != null && sb == null) return -1;
+      if (sa == null && sb != null) return 1;
+      return a.originalDueDate.localeCompare(b.originalDueDate);
+    });
 }
 
 /** Instances completed on a given day. */
