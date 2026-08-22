@@ -1,6 +1,9 @@
 import './styles/app.css';
-import { clear, el } from './lib/dom.js';
+import { clear, el, svg } from './lib/dom.js';
 import { store } from './lib/store.js';
+import { completedOnDate } from './lib/schedule.js';
+import { currentStreak } from './lib/stats.js';
+import { formatLong, todayISO } from './lib/dates.js';
 import { renderToday } from './views/today.js';
 import { renderCategories } from './views/categories.js';
 import { renderRandomizer } from './views/randomizer.js';
@@ -51,6 +54,46 @@ function currentViewId() {
   return VIEWS[id] ? id : 'today';
 }
 
+/* The masthead is the one piece of pure brand in the app: a centred wordmark
+   on a striped panel, with two small pills carrying the day and the day's
+   progress. Rebuilt on each route so the pills stay accurate. */
+function buildMasthead() {
+  const done = completedOnDate(store.state.instances, todayISO()).length;
+  const streak = currentStreak(store.state.instances);
+
+  const pills = el('div', { class: 'pills' }, [
+    el('span', { class: 'pill', text: formatLong(todayISO()) }),
+    done
+      ? el('span', { class: 'pill pill-accent', text: `${done} done today` })
+      : null,
+    streak > 1
+      ? el('span', { class: 'pill pill-quiet', text: `${streak}-day streak` })
+      : null,
+  ]);
+
+  return el('header', { class: 'masthead' }, [
+    el('div', { class: 'masthead-panel' }, [
+      el('div', { class: 'stripes', 'aria-hidden': 'true' }),
+      el('div', { class: 'masthead-inner' }, [
+        svg('svg', { class: 'mark', viewBox: '0 0 48 48', fill: 'none', 'aria-hidden': 'true' }, [
+          svg('circle', { cx: '24', cy: '27', r: '14', stroke: 'var(--ink-blue)', 'stroke-width': '2' }),
+          svg('path', { d: 'M24 11V6', stroke: 'var(--ink)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
+          svg('circle', { cx: '24', cy: '4.5', r: '2.6', fill: 'var(--butter)', stroke: 'var(--ink)', 'stroke-width': '1.6' }),
+          svg('path', { d: 'M24 27V19', stroke: 'var(--ink-blue)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
+          svg('path', { d: 'M24 27h6', stroke: 'var(--ink-blue)', 'stroke-width': '2', 'stroke-linecap': 'round' }),
+        ]),
+        el('h1', { class: 'wordmark' }, [
+          '10 ',
+          el('em', { text: 'minutes' }),
+          ' to spare',
+        ]),
+        el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
+        pills,
+      ]),
+    ]),
+  ]);
+}
+
 function buildChrome() {
   const app = document.getElementById('app');
   clear(app);
@@ -80,28 +123,27 @@ function buildChrome() {
   }
 
   const outlet = el('div', { id: 'view' });
+  const mastheadSlot = el('div');
 
+  // Nav sits before the content in the DOM so it reads above it on desktop;
+  // on phones it's position:fixed, so it pins to the bottom regardless.
   app.append(
-    el('header', { class: 'app' }, [
-      el('div', { class: 'masthead' }, [
-        el('div', { class: 'wordmark' }, [
-          '10 minutes to spare',
-          el('span', { text: 'tiny tasks, real results' }),
-        ]),
-      ]),
-    ]),
+    mastheadSlot,
     marquee,
-    el('main', { class: 'app' }, [outlet]),
     nav,
+    el('main', { class: 'app' }, [outlet]),
   );
 
-  return { nav, outlet };
+  return { nav, outlet, mastheadSlot };
 }
 
-function route({ nav, outlet }) {
+function route({ nav, outlet, mastheadSlot }) {
   const id = currentViewId();
   const view = VIEWS[id];
   const section = sectionFor(id);
+
+  clear(mastheadSlot);
+  mastheadSlot.append(buildMasthead());
 
   if (currentView === 'timer' && id !== 'timer') teardownTimer();
   currentView = id;

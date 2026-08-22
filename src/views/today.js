@@ -6,7 +6,7 @@ import {
 } from './calendar.js';
 import { completedOnDate, instancesForDate, wasMoved } from '../lib/schedule.js';
 import { currentStreak, completedTotal, milestoneFor } from '../lib/stats.js';
-import { addDays, formatLong, fromISO, todayISO } from '../lib/dates.js';
+import { addDays, fromISO, todayISO } from '../lib/dates.js';
 
 /* The main view. Day is the working list — the one you actually tick things
    off in. Week and month are the same data zoomed out, so the calendar isn't
@@ -268,11 +268,9 @@ export function renderToday(root) {
   // with arrows to step through.
   card.append(
     el('div', { class: 'cal-head' }, [
+      // The masthead already carries today's date, so the heading doesn't.
       isToday
-        ? el('div', { class: 'row' }, [
-            el('h2', { text: 'Today' }),
-            el('span', { class: 'sub', text: formatLong(today) }),
-          ])
+        ? el('div', { class: 'row' }, [el('h2', { text: 'Today' })])
         : el('div', { class: 'row' }, [
             el('button', { class: 'icon-btn', text: '‹', 'aria-label': 'Previous', onClick: () => step(-1) }),
             el('span', { class: 'cal-title', text: periodTitle(mode, anchor, selected) }),

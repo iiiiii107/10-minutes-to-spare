@@ -101,23 +101,80 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 .app { max-width: 940px; margin: 0 auto; padding: 0 20px calc(104px + env(safe-area-inset-bottom)); }
 @media (min-width: 720px) { .app { padding-bottom: 100px; } }
 
-.masthead {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 22px 0 16px; flex-wrap: wrap;
+/* ---------- masthead ----------
+   A centred wordmark on a pinstriped panel, with small pills underneath
+   carrying the date and the day's progress. */
+
+.masthead { padding: 18px 20px 0; }
+
+.masthead-panel {
+  position: relative;
+  max-width: 940px; margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 1px 2px var(--shadow-1), 0 10px 26px -16px var(--shadow-2);
 }
+
+/* Vertical pinstripes, kept faint so the wordmark stays the loudest thing. */
+.stripes {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-blue) 8%, transparent) 0 11px,
+    transparent 11px 24px
+  );
+}
+
+.masthead-inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 26px 20px 22px;
+  text-align: center;
+}
+
+.mark { width: 34px; height: 34px; margin-bottom: 2px; }
+
 .wordmark {
   font-family: var(--font-display);
-  font-size: clamp(23px, 4.4vw, 31px);
+  font-size: clamp(30px, 7vw, 52px);
   font-weight: 600; color: var(--ink-blue);
-  letter-spacing: -.4px; line-height: 1.1;
+  letter-spacing: -1px; line-height: 1;
 }
-.wordmark span { display: block; font-size: .58em; color: var(--muted); font-style: italic; letter-spacing: 0; }
-.masthead-actions { display: flex; gap: 8px; align-items: center; }
+/* The middle word carries the italic, the way the reference wordmarks
+   split their two halves. */
+.wordmark em {
+  font-style: italic; font-weight: 500;
+  color: var(--ink-deep);
+}
+.wordmark-sub {
+  font-family: var(--font-display); font-style: italic; font-weight: 500;
+  font-size: clamp(13px, 2.4vw, 15px); color: var(--muted);
+}
+
+.pills { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.pill {
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  padding: 6px 14px; border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  border: 1px solid var(--hair-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pill-accent {
+  background: var(--butter); border-color: var(--butter-deep); color: #20395C;
+}
+.pill-quiet {
+  background: color-mix(in srgb, var(--sage) 26%, var(--paper));
+  border-color: color-mix(in srgb, var(--sage) 45%, transparent);
+  color: var(--ink);
+}
 
 .marquee {
   background: var(--band);
   border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
-  overflow: hidden; white-space: nowrap; padding: 8px 0; margin-bottom: 20px;
+  overflow: hidden; white-space: nowrap; padding: 8px 0;
+  margin: 20px 0;
 }
 .marquee-track { display: inline-block; animation: slide 38s linear infinite; }
 .marquee span {
@@ -133,22 +190,25 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 
 .nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-  display: flex; align-items: stretch;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 8px;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--hair-strong);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   box-shadow: 0 -6px 20px -14px var(--shadow-2);
 }
+/* Every tab is one equal grid column, and each carries a filled cell whether
+   or not it's current — so making one active never shifts the rhythm. */
 .nav-tab {
-  flex: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; padding: 7px 4px;
+  gap: 3px; padding: 8px 4px; min-width: 0;
   text-decoration: none; border-radius: 10px;
   font-weight: 700; font-size: 11px; color: var(--muted);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
   transition: color .18s, background .18s;
 }
-.nav-icon { font-size: 18px; line-height: 1; }
+.nav-icon { font-size: 17px; line-height: 1; }
 .nav-tab:hover { color: var(--ink); }
 .nav-tab[aria-current="page"] {
   color: var(--btn-text);
@@ -159,16 +219,17 @@ body[data-view="stats"], body[data-view="settings"], body[data-view="other"] {
 @media (min-width: 720px) {
   .nav {
     position: static; max-width: 940px; margin: 0 auto 22px;
-    padding: 0 20px; gap: 6px;
+    grid-auto-columns: 1fr;
+    padding: 0 20px;
     background: none; backdrop-filter: none; border-top: none; box-shadow: none;
   }
   .nav-tab {
-    flex: 0 0 auto; flex-direction: row; gap: 7px;
-    font-size: 12.5px; padding: 9px 18px; border-radius: var(--radius-sm);
+    flex-direction: row; gap: 8px;
+    font-size: 13px; padding: 11px 18px; border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--paper) 82%, transparent);
     box-shadow: 0 2px 0 var(--hair-strong), inset 0 1px 0 rgb(255 255 255 / .4);
   }
-  .nav-icon { font-size: 14px; }
+  .nav-icon { font-size: 15px; }
 }
 
 /* ---------- the four Other views ---------- */
