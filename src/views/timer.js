@@ -120,6 +120,10 @@ const GRAB_Y = 20;
 
 let padOpen = false;
 
+/* A phone has no space bar, so picking a tool up is a mode there instead: tap
+   one and it stays in your hand until you tap it again. */
+let armed = null;
+
 function startPadToolDrag(date, toolId, event, source) {
   const tool = toolWith(toolId, store.state.settings.toolStyles?.[toolId]);
   const pad = document.querySelector('#view .notepad');
@@ -145,6 +149,10 @@ function startPadToolDrag(date, toolId, event, source) {
   let points = [];
   let path = null;
   let lifted = false;
+
+  /* A press that never travels is a tap, and a tap picks the tool up. */
+  const from = { x: event.clientX, y: event.clientY };
+  let travelled = false;
 
   function closeStroke() {
     if (points.length >= 2 && path) strokes.push(path);
@@ -182,6 +190,9 @@ function startPadToolDrag(date, toolId, event, source) {
 
   function onMove(moveEvent) {
     place(moveEvent.clientX, moveEvent.clientY);
+    if (Math.hypot(moveEvent.clientX - from.x, moveEvent.clientY - from.y) > 6) {
+      travelled = true;
+    }
 
     // Nib up: still in hand, still following, just not writing.
     if (lifted) return;
@@ -243,6 +254,13 @@ function startPadToolDrag(date, toolId, event, source) {
     setTimeout(() => ghost.remove(), 180);
     source.classList.remove('lifted');
 
+    // Never went anywhere: you tapped it, so it goes in your hand.
+    if (!travelled) {
+      armed = armed === toolId ? null : toolId;
+      if (mountRoot) renderTimer(mountRoot);
+      return;
+    }
+
     if (tool.erases) {
       if (erased.size || wipedMarks) {
         store.eraseFromPad(date, { stickerIds: [...erased], clearMarks: wipedMarks });
@@ -268,6 +286,104 @@ function startPadToolDrag(date, toolId, event, source) {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', liftNib);
+}
+
+
+/**
+ * With a tool armed, a finger on the pad draws on it — no ghost, and the nib
+ * under the finger rather than offset, because there is no drawn tool in your
+ * hand to write from the tip of.
+ */
+function armedPadDraw(pad, date) {
+  pad.classList.add('armed');
+  const layer = pad.querySelector('.pad-ink');
+  if (!layer) return;
+
+  pad.addEventListener('pointerdown', (event) => {
+    if (!armed) return;
+    if (event.target.closest('.pot-tool')) return;
+    const tool = toolWith(armed, store.state.settings.toolStyles?.[armed]);
+
+    event.preventDefault();
+    capturePointer(pad, event.pointerId);
+
+    const points = [];
+    let path = null;
+    const erased = new Set();
+    let wiped = false;
+
+    function draw(pointer) {
+      const box = pad.getBoundingClientRect();
+
+      if (tool.erases) {
+        for (const node of pad.querySelectorAll('.sticker-placed[data-sticker]')) {
+          const rect = node.getBoundingClientRect();
+          const over =
+            pointer.clientX >= rect.left && pointer.clientX <= rect.right &&
+            pointer.clientY >= rect.top && pointer.clientY <= rect.bottom;
+          if (!over) continue;
+          erased.add(node.dataset.sticker);
+          node.classList.add('rubbed-out');
+          node.removeAttribute('data-sticker');
+          setTimeout(() => node.remove(), 200);
+        }
+        if (layer.childElementCount) {
+          layer.replaceChildren();
+          wiped = true;
+        }
+        return;
+      }
+
+      if (!path) {
+        path = svg('path', {
+          fill: 'none',
+          stroke: tool.ink || 'var(--ink)',
+          'stroke-width': String(tool.width),
+          'stroke-opacity': String(tool.opacity),
+          'stroke-linecap': tool.id === 'highlighter' ? 'butt' : 'round',
+          'stroke-linejoin': 'round',
+        });
+        layer.append(path);
+      }
+      points.push({ x: pointer.clientX - box.left, y: pointer.clientY - box.top });
+      path.setAttribute('d', pathFromPoints(simplify(points)));
+    }
+
+    draw(event);
+
+    function onMove(moveEvent) {
+      moveEvent.preventDefault();
+      draw(moveEvent);
+    }
+
+    function onUp() {
+      pad.removeEventListener('pointermove', onMove);
+      pad.removeEventListener('pointerup', onUp);
+      pad.removeEventListener('pointercancel', onUp);
+
+      if (tool.erases) {
+        if (erased.size || wiped) {
+          store.eraseFromPad(date, { stickerIds: [...erased], clearMarks: wiped });
+        }
+        return;
+      }
+      if (points.length < 2 || !path) {
+        path?.remove();
+        return;
+      }
+      store.addPadMarks(date, [{
+        d: path.getAttribute('d'),
+        ink: tool.ink || 'var(--ink)',
+        width: tool.width,
+        opacity: tool.opacity,
+        cap: tool.id === 'highlighter' ? 'butt' : 'round',
+      }]);
+    }
+
+    pad.addEventListener('pointermove', onMove);
+    pad.addEventListener('pointerup', onUp);
+    pad.addEventListener('pointercancel', onUp);
+  });
 }
 
 /** The pen that fetches the pot out over the notepad. */
@@ -449,6 +565,9 @@ export function renderTimer(root) {
     pad.append(placedSticker(pad, date, sticker));
   }
 
+  // With a tool in hand, a finger on the pad draws on it.
+  if (armed && padOpen) armedPadDraw(pad, date);
+
   const notesCard = el('div', { class: 'card paper' }, [
     el('div', { class: 'section-head' }, [
       el('h2', { text: 'Notes' }),
@@ -468,9 +587,15 @@ export function renderTimer(root) {
             onDragStart: (id, event, node) => startPadToolDrag(date, id, event, node),
             onAdjust: toolStyleDialog,
             styles: store.state.settings.toolStyles,
+            armed,
             compact: true,
           }),
-          el('span', { class: 'pen-hint', text: 'Write on the pad. The eraser rubs out marks and stickers.' }),
+          el('span', {
+            class: `pen-hint${armed ? ' holding' : ''}`,
+            text: armed
+              ? 'Draw on the pad. Tap the tool again to put it down.'
+              : 'Tap a tool to pick it up, or drag it out. The eraser rubs out marks and stickers.',
+          }),
         ])
       : null,
     pad,

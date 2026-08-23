@@ -39,6 +39,12 @@ let mountRoot = null;
    of marking things up isn't one click per stroke. */
 let potOpen = false;
 
+/* A phone has no space bar, so picking a tool up is a mode there instead: tap
+   a tool and it stays in your hand, a finger on a task draws, and tapping it
+   again puts it down. A press that never travels is a tap; one that travels is
+   a drag out of the pot, as before. */
+let armed = null;
+
 function rerender() {
   if (mountRoot) renderToday(mountRoot);
 }
@@ -157,7 +163,118 @@ function pot(compact = false) {
     onDragStart: startToolDrag,
     onAdjust: toolStyleDialog,
     styles: store.state.settings.toolStyles,
+    armed,
     compact,
+  });
+}
+
+
+/* ---------- drawing with the tool already in hand ---------- */
+
+/**
+ * With a tool armed, a finger on the list draws on whichever task it is over.
+ *
+ * The rows are the canvases here, not the surface — a mark belongs to one task
+ * and is kept with it — so this finds the row under the finger on every move,
+ * the same way the drag does. The nib is under the finger rather than offset:
+ * the offset exists because a dragged tool is drawn in your hand and writes
+ * from its tip, and there is no drawn tool in this mode.
+ */
+function armedDraw(surface) {
+  surface.classList.add('armed');
+
+  surface.addEventListener('pointerdown', (event) => {
+    if (!armed) return;
+    if (event.target.closest('.pot-tool')) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const tool = toolWith(armed, store.state.settings.toolStyles?.[armed]);
+    capturePointer(surface, event.pointerId);
+
+    const rows = () => surface.querySelectorAll('.task-row[data-instance]');
+    const strokes = new Map();
+    const done = [];
+
+    function inkFor(row) {
+      if (!strokes.has(row)) strokes.set(row, { points: [], path: null });
+      const stroke = strokes.get(row);
+      if (!stroke.path) {
+        stroke.path = svg('path', {
+          fill: 'none',
+          stroke: tool.ink || getComputedStyle(row).getPropertyValue('--task').trim(),
+          'stroke-width': String(tool.width),
+          'stroke-opacity': String(tool.opacity),
+          'stroke-linecap': tool.id === 'highlighter' ? 'butt' : 'round',
+          'stroke-linejoin': 'round',
+        });
+        row.querySelector('.ink').append(stroke.path);
+      }
+      return stroke;
+    }
+
+    function draw(pointer) {
+      for (const row of rows()) {
+        const rect = row.getBoundingClientRect();
+        const inside =
+          pointer.clientX >= rect.left && pointer.clientX <= rect.right &&
+          pointer.clientY >= rect.top && pointer.clientY <= rect.bottom;
+        if (!inside) continue;
+
+        if (tool.erases) {
+          const layer = row.querySelector('.ink');
+          if (layer?.childElementCount) {
+            layer.replaceChildren();
+            store.clearMarks(row.dataset.instance);
+          }
+          row.classList.remove('hand-marked');
+          continue;
+        }
+
+        const stroke = inkFor(row);
+        stroke.points.push({ x: pointer.clientX - rect.left, y: pointer.clientY - rect.top });
+        stroke.path.setAttribute('d', pathFromPoints(simplify(stroke.points)));
+      }
+    }
+
+    draw(event);
+
+    function onMove(moveEvent) {
+      moveEvent.preventDefault();
+      draw(moveEvent);
+    }
+
+    function onUp() {
+      surface.removeEventListener('pointermove', onMove);
+      surface.removeEventListener('pointerup', onUp);
+      surface.removeEventListener('pointercancel', onUp);
+      if (tool.erases) return;
+
+      for (const [row, stroke] of strokes) {
+        if (stroke.points.length >= 2 && stroke.path) done.push({ row, path: stroke.path });
+      }
+
+      for (const { row, path } of done) {
+        const instanceId = row.dataset.instance;
+        const color = getComputedStyle(row).getPropertyValue('--task').trim();
+        if (tool.completes) {
+          row.classList.add('hand-marked');
+          completeRow(row, instanceId, tool.ink || color, { instant: true });
+        } else {
+          store.addMark(instanceId, {
+            d: path.getAttribute('d'),
+            ink: tool.ink || color,
+            width: tool.width,
+            opacity: tool.opacity,
+            cap: tool.id === 'highlighter' ? 'butt' : 'round',
+          });
+        }
+      }
+    }
+
+    surface.addEventListener('pointermove', onMove);
+    surface.addEventListener('pointerup', onUp);
+    surface.addEventListener('pointercancel', onUp);
   });
 }
 
@@ -193,6 +310,11 @@ function startToolDrag(toolId, event, source) {
      putting it back down starts a fresh mark rather than joining up. */
   let lifted = false;
   const finished = [];
+
+  /* A press that never travels is a tap, and a tap picks the tool up rather
+     than drawing a dot nobody asked for. */
+  const from = { x: event.clientX, y: event.clientY };
+  let travelled = false;
 
   function closeStrokes() {
     for (const [row, stroke] of strokes) {
@@ -244,6 +366,9 @@ function startToolDrag(toolId, event, source) {
 
   function onMove(moveEvent) {
     place(moveEvent.clientX, moveEvent.clientY);
+    if (Math.hypot(moveEvent.clientX - from.x, moveEvent.clientY - from.y) > 6) {
+      travelled = true;
+    }
 
     // Nib up: still in hand, still following, just not writing.
     if (lifted) return;
@@ -287,6 +412,13 @@ function startToolDrag(toolId, event, source) {
     ghost.classList.add('returning');
     setTimeout(() => ghost.remove(), 180);
     source.classList.remove('lifted');
+
+    // Never went anywhere: you tapped it, so it goes in your hand.
+    if (!travelled) {
+      armed = armed === toolId ? null : toolId;
+      rerender();
+      return;
+    }
 
     // Whatever is still being drawn joins the ones the nib was lifted off.
     closeStrokes();
@@ -390,7 +522,12 @@ function todayBody() {
       surface.append(
         el('div', { class: 'pen-bar' }, [
           pot(true),
-          el('span', { class: 'pen-hint', text: 'Drag a tool across a task. Hover one to see what it does.' }),
+          el('span', {
+            class: `pen-hint${armed ? ' holding' : ''}`,
+            text: armed
+              ? 'Draw across a task. Tap the tool again to put it down.'
+              : 'Tap a tool to pick it up, or drag it out. Hold space to lift it.',
+          }),
         ]),
       );
     }
@@ -399,6 +536,9 @@ function todayBody() {
       const row = taskRow(instance, index);
       if (row) surface.append(row);
     });
+
+    // With a tool in hand, a finger on the list draws on whatever it crosses.
+    if (armed) armedDraw(surface);
 
     card.append(surface);
   }
