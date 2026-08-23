@@ -6,6 +6,17 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "time-to-spare",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/isabelkochova/Documents/coding/calendartospare",
+        "run",
+        "dev"
+      ],
+      "port": 5174
     }
   ]
 }

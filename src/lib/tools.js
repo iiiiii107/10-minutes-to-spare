@@ -10,13 +10,17 @@
    is annotating your own list, not another way to change its state.
 
    Every mark is drawn on the task itself. The task row is the canvas, so a
-   mark belongs to that one task and is stored with it. */
+   mark belongs to that one task and is stored with it.
+
+   Holding the space bar lifts whichever tool you are dragging: it keeps
+   following the pointer but stops writing, so you can cross the list to reach
+   another task without a line trailing behind you. */
 
 export const TOOLS = {
   pen: {
     id: 'pen',
     label: 'Pen',
-    hint: 'Draw across a task to cross it off. This ticks it as done.',
+    hint: 'Draw across a task to cross it off — this ticks it as done. Hold space to lift the nib.',
     /** null means "use the task's own colour". */
     ink: null,
     width: 2.2,
@@ -26,7 +30,7 @@ export const TOOLS = {
   highlighter: {
     id: 'highlighter',
     label: 'Highlighter',
-    hint: 'Colour over a task. It stays undone — this only marks it up.',
+    hint: 'Colour over a task. It stays undone. Hold space to lift the nib.',
     ink: '#EFD87B',
     width: 15,
     opacity: 0.4,
@@ -36,7 +40,7 @@ export const TOOLS = {
   crayon: {
     id: 'crayon',
     label: 'Crayon',
-    hint: 'Scribble on a task. It stays undone — this only marks it up.',
+    hint: 'Scribble on a task. It stays undone. Hold space to lift the nib.',
     ink: '#B8714C',
     width: 5.5,
     opacity: 0.8,
@@ -46,7 +50,7 @@ export const TOOLS = {
   eraser: {
     id: 'eraser',
     label: 'Eraser',
-    hint: 'Rub marks off a task. It leaves the task itself alone.',
+    hint: 'Rub marks off a task. Hold space to lift it. The task is untouched.',
     ink: null,
     width: 0,
     opacity: 1,

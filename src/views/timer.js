@@ -139,8 +139,42 @@ function startPadToolDrag(date, toolId, event, source) {
   };
   place(event.clientX, event.clientY);
 
-  const points = [];
+  /* Holding space lifts the nib — the tool keeps following the pointer but
+     stops writing, so a single drag can leave several separate marks. */
+  const strokes = [];
+  let points = [];
   let path = null;
+  let lifted = false;
+
+  function closeStroke() {
+    if (points.length >= 2 && path) strokes.push(path);
+    points = [];
+    path = null;
+  }
+
+  function liftNib() {
+    if (lifted) return;
+    lifted = true;
+    ghost.classList.add('lifted-nib');
+    closeStroke();
+  }
+
+  function lowerNib() {
+    lifted = false;
+    ghost.classList.remove('lifted-nib');
+  }
+
+  function onKeyDown(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    keyEvent.preventDefault();
+    liftNib();
+  }
+
+  function onKeyUp(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    keyEvent.preventDefault();
+    lowerNib();
+  }
 
   /** Stickers rubbed out this pass, committed on release. */
   const erased = new Set();
@@ -148,6 +182,9 @@ function startPadToolDrag(date, toolId, event, source) {
 
   function onMove(moveEvent) {
     place(moveEvent.clientX, moveEvent.clientY);
+
+    // Nib up: still in hand, still following, just not writing.
+    if (lifted) return;
 
     const nibX = moveEvent.clientX + NIB_OFFSET_X;
     const nibY = moveEvent.clientY + NIB_OFFSET_Y;
@@ -198,6 +235,9 @@ function startPadToolDrag(date, toolId, event, source) {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', liftNib);
 
     ghost.classList.add('returning');
     setTimeout(() => ghost.remove(), 180);
@@ -210,19 +250,24 @@ function startPadToolDrag(date, toolId, event, source) {
       return;
     }
 
-    if (points.length < 2 || !path) return;
-    store.addPadMarks(date, [{
-      d: path.getAttribute('d'),
+    closeStroke();
+    if (!strokes.length) return;
+
+    store.addPadMarks(date, strokes.map((stroke) => ({
+      d: stroke.getAttribute('d'),
       ink: tool.ink || 'var(--ink)',
       width: tool.width,
       opacity: tool.opacity,
       cap: tool.id === 'highlighter' ? 'butt' : 'round',
-    }]);
+    })));
   }
 
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', liftNib);
 }
 
 /** The pen that fetches the pot out over the notepad. */

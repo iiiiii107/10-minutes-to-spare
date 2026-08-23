@@ -187,6 +187,44 @@ function startToolDrag(toolId, event, source) {
   /** Points collected per row while the nib is inside it. */
   const strokes = new Map();
 
+  /* Holding space lifts the nib: the tool keeps following the pointer but
+     stops writing, so you can cross the list to reach another task without a
+     line trailing behind you. Lifting closes whatever was being drawn, so
+     putting it back down starts a fresh mark rather than joining up. */
+  let lifted = false;
+  const finished = [];
+
+  function closeStrokes() {
+    for (const [row, stroke] of strokes) {
+      if (stroke.points.length >= 2 && stroke.path) finished.push({ row, path: stroke.path });
+    }
+    strokes.clear();
+  }
+
+  function liftNib() {
+    if (lifted) return;
+    lifted = true;
+    ghost.classList.add('lifted-nib');
+    closeStrokes();
+  }
+
+  function lowerNib() {
+    lifted = false;
+    ghost.classList.remove('lifted-nib');
+  }
+
+  function onKeyDown(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    keyEvent.preventDefault();
+    liftNib();
+  }
+
+  function onKeyUp(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    keyEvent.preventDefault();
+    lowerNib();
+  }
+
   function inkFor(row) {
     if (!strokes.has(row)) strokes.set(row, { points: [], path: null });
     const stroke = strokes.get(row);
@@ -206,6 +244,9 @@ function startToolDrag(toolId, event, source) {
 
   function onMove(moveEvent) {
     place(moveEvent.clientX, moveEvent.clientY);
+
+    // Nib up: still in hand, still following, just not writing.
+    if (lifted) return;
 
     const nibX = moveEvent.clientX + NIB_OFFSET_X;
     const nibY = moveEvent.clientY + NIB_OFFSET_Y;
@@ -238,14 +279,19 @@ function startToolDrag(toolId, event, source) {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', liftNib);
 
     // The tool drops back into the cup.
     ghost.classList.add('returning');
     setTimeout(() => ghost.remove(), 180);
     source.classList.remove('lifted');
 
-    for (const [row, stroke] of strokes) {
-      if (stroke.points.length < 2) continue;
+    // Whatever is still being drawn joins the ones the nib was lifted off.
+    closeStrokes();
+
+    for (const { row, path } of finished) {
       const instanceId = row.dataset.instance;
       const color = getComputedStyle(row).getPropertyValue('--task').trim();
 
@@ -257,7 +303,7 @@ function startToolDrag(toolId, event, source) {
         // Highlighter and crayon change nothing — they leave colour, and
         // that mark is kept with the task.
         store.addMark(instanceId, {
-          d: stroke.path.getAttribute('d'),
+          d: path.getAttribute('d'),
           ink: tool.ink || color,
           width: tool.width,
           opacity: tool.opacity,
@@ -265,12 +311,16 @@ function startToolDrag(toolId, event, source) {
         });
       }
     }
-    strokes.clear();
+    finished.length = 0;
   }
 
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  // Losing the window while space is held would leave the nib down.
+  window.addEventListener('blur', liftNib);
 }
 
 /* ---------- done summary ---------- */
