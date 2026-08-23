@@ -98,7 +98,7 @@ function clockIcon() {
 
 /* A wall calendar in the same flat, drawn style as the clock — the pair read
    as two things pinned in the corner of the page rather than two icon sets.
-   It goes to Google Calendar, where the timed tasks are written. */
+   It goes to Time to Spare, the calendar this app is one half of. */
 function calendarIcon() {
   return svg('svg', { viewBox: '0 0 64 64', fill: 'none', 'aria-hidden': 'true' }, [
     // the two hangers over the rail
@@ -160,15 +160,16 @@ function buildMasthead(onToggleTime) {
         el('p', { class: 'wordmark-sub', text: 'tiny tasks, real results' }),
       ]);
 
-  // A link rather than a scripted window.open, so it behaves like every other
-  // link — opens in a new tab, and can be middle-clicked or long-pressed.
+  /* Through to the calendar — the other half of the same desk. A link rather
+     than a scripted window.open, so it behaves like every other link and can
+     be middle-clicked or long-pressed. */
   const calendarLink = el('a', {
     class: 'cal-link',
-    href: 'https://calendar.google.com/calendar/r/day',
+    href: 'https://iiiiii107.github.io/time-to-spare/',
     target: '_blank',
     rel: 'noopener noreferrer',
-    'aria-label': 'Open Google Calendar in a new tab',
-    title: 'Open Google Calendar',
+    'aria-label': 'Open Time to Spare, the calendar, in a new tab',
+    title: 'Time to spare — the calendar',
   }, [calendarIcon()]);
 
   return el('header', { class: 'masthead' }, [
