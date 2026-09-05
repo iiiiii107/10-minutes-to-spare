@@ -1,5 +1,5 @@
 import {
-  addDays, addMonths, dayOfWeek, daysInMonth, isWeekend,
+  addDays, addMonths, dayOfWeek, daysBetween, daysInMonth, isWeekend,
   startOfMonth, startOfWeek, todayISO,
 } from './dates.js';
 
@@ -60,7 +60,12 @@ export function frequencyOf(task) {
 }
 
 /** The most a period can hold, so counts stay meaningful. */
-export const PERIOD_MAX = { week: 7, month: 28, year: 12 };
+export const PERIOD_MAX = { week: 7, month: 28, year: 12, once: 1 };
+
+/** A task that happens on one named day and never again. */
+export function isOneOff(task) {
+  return frequencyOf(task).period === 'once';
+}
 
 function instanceKey(taskId, periodStart, slot) {
   return `${taskId}|${periodStart}|${slot}`;
@@ -79,32 +84,80 @@ function instanceKey(taskId, periodStart, slot) {
  * days; a year task across its 12 months. Same idea at three scales, so
  * "twice a month" and "twice a year" behave as predictably as "twice a week".
  */
+/**
+ * The first period window to generate, given where the rhythm is anchored.
+ *
+ * Without a start date the windows follow the calendar — weeks begin on your
+ * week-start, months on the 1st. With one, they are counted from that date
+ * instead, so a task started on a Wednesday keeps landing on Wednesdays. This
+ * is the difference between the app choosing the days and you choosing them.
+ *
+ * @param {string} start the anchor date
+ * @param {string} today
+ * @param {(iso: string, n: number) => string} step how to advance one window
+ */
+function firstWindow(start, today, step) {
+  let window = start;
+  // Walk forward to the window that contains today, never past it.
+  for (let guard = 0; guard < 400; guard += 1) {
+    const next = step(window, 1);
+    if (next > today) break;
+    window = next;
+  }
+  // A start in the future is its own first window.
+  return start > today ? start : window;
+}
+
 function occurrences(task, today, horizon, settings) {
   const { count, period } = frequencyOf(task);
+  const start = task.startDate || null;
   const out = [];
 
+  // A one-off sits on its day and never comes back. No spreading, no period.
+  if (period === 'once') {
+    if (!start) return [];
+    return [{ date: start, key: `${task.id}|once` }];
+  }
+
   if (period === 'year') {
-    for (let y = 0; y < 2; y += 1) {
-      const yearStart = `${Number(today.slice(0, 4)) + y}-01-01`;
-      spreadSlots(count, 12).forEach((month, index) => {
-        out.push({ date: addMonths(yearStart, month), key: instanceKey(task.id, yearStart, `y${index}`) });
-      });
+    if (start) {
+      const first = firstWindow(start, today, (iso, n) => addMonths(iso, n * 12));
+      for (let y = 0; y < 2; y += 1) {
+        const yearStart = addMonths(first, y * 12);
+        spreadSlots(count, 12).forEach((month, index) => {
+          out.push({ date: addMonths(yearStart, month), key: instanceKey(task.id, yearStart, `y${index}`) });
+        });
+      }
+    } else {
+      for (let y = 0; y < 2; y += 1) {
+        const yearStart = `${Number(today.slice(0, 4)) + y}-01-01`;
+        spreadSlots(count, 12).forEach((month, index) => {
+          out.push({ date: addMonths(yearStart, month), key: instanceKey(task.id, yearStart, `y${index}`) });
+        });
+      }
     }
-    return out;
+    return out.filter((o) => !start || o.date >= start);
   }
 
   if (period === 'month') {
+    const first = start
+      ? firstWindow(start, today, (iso, n) => addMonths(iso, n))
+      : startOfMonth(today);
     for (let m = 0; m < 3; m += 1) {
-      const monthStart = addMonths(startOfMonth(today), m);
-      const span = daysInMonth(monthStart);
+      const monthStart = addMonths(first, m);
+      const span = start
+        ? Math.max(1, daysBetween(monthStart, addMonths(monthStart, 1)))
+        : daysInMonth(monthStart);
       spreadSlots(count, span).forEach((day, index) => {
         out.push({ date: addDays(monthStart, day), key: instanceKey(task.id, monthStart, `m${index}`) });
       });
     }
-    return out;
+    return out.filter((o) => !start || o.date >= start);
   }
 
-  const firstWeek = startOfWeek(today, settings.weekStartsOn ?? 1);
+  const firstWeek = start
+    ? firstWindow(start, today, (iso, n) => addDays(iso, n * 7))
+    : startOfWeek(today, settings.weekStartsOn ?? 1);
   const weeksToCover = Math.ceil(WINDOW_DAYS / 7) + 1;
   for (let w = 0; w < weeksToCover; w += 1) {
     const weekStart = addDays(firstWeek, w * 7);
@@ -112,7 +165,7 @@ function occurrences(task, today, horizon, settings) {
       out.push({ date: addDays(weekStart, slot), key: instanceKey(task.id, weekStart, slot) });
     }
   }
-  return out.filter((o) => o.date <= horizon);
+  return out.filter((o) => o.date <= horizon && (!start || o.date >= start));
 }
 
 export function generateInstances(tasks, instances, today, settings) {
@@ -321,6 +374,7 @@ export function wasMoved(instance) {
 
 /** Day offsets a task occupies, for showing its rhythm in the editor. */
 export function describeFrequency(count, period = 'week') {
+  if (period === 'once') return 'just the once';
   const max = PERIOD_MAX[period] || 7;
   const n = Math.max(1, Math.min(max, Math.round(count)));
   if (period === 'week' && n === 7) return 'every day';
@@ -333,6 +387,7 @@ export function describeFrequency(count, period = 'week') {
 /** Short form for the badge on a task row. */
 export function shortFrequency(task) {
   const { count, period } = frequencyOf(task);
+  if (period === 'once') return 'once';
   return `${count}×/${{ week: 'wk', month: 'mo', year: 'yr' }[period]}`;
 }
 

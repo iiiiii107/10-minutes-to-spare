@@ -93,7 +93,10 @@ class Store extends EventTarget {
 
   // ---- tasks ------------------------------------------------------------
 
-  addTask({ categoryId, name, count = 2, period = 'week', color }) {
+  addTask({
+    categoryId, name, count = 2, period = 'week', color,
+    startDate = '', startTime = '', duration,
+  }) {
     const category = this.state.categories.find((c) => c.id === categoryId);
     this.state.tasks.push({
       id: uid(),
@@ -102,6 +105,11 @@ class Store extends EventTarget {
       count: Number(count),
       period,
       color: color || category?.color || TASK_COLORS[0],
+      // When it starts and when in the day it sits — both optional, both
+      // carried from the dialog rather than dropped on the way in.
+      startDate,
+      startTime,
+      duration: Number(duration) || this.state.settings.minutesPerTask || 10,
       active: true,
       createdAt: new Date().toISOString(),
     });
@@ -113,12 +121,16 @@ class Store extends EventTarget {
     const task = this.state.tasks.find((t) => t.id === id);
     if (!task) return this.persist();
 
-    const frequencyChanged =
+    // Anything that decides *when* a task falls has to invalidate the plan.
+    // The start date belongs in here as much as the frequency does: moving it
+    // and leaving the old instances behind would show the old days.
+    const scheduleChanged =
       (patch.count != null && patch.count !== task.count) ||
-      (patch.period != null && patch.period !== task.period);
+      (patch.period != null && patch.period !== task.period) ||
+      ('startDate' in patch && (patch.startDate || '') !== (task.startDate || ''));
     Object.assign(task, patch);
 
-    if (frequencyChanged) {
+    if (scheduleChanged) {
       // Drop untouched future instances so the new rhythm takes effect,
       // but never disturb today or anything already done.
       const today = todayISO();

@@ -3,6 +3,7 @@ import { store, TASK_COLORS } from '../lib/store.js';
 import {
   PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency, slotLabel,
 } from '../lib/schedule.js';
+import { formatLong, todayISO } from '../lib/dates.js';
 
 /* Categories and the tasks inside them. Everything is editable: tap a
    category to rename it, change its emoji or colour, or delete it. */
@@ -184,6 +185,11 @@ function categoryDialog(existing) {
         nameInput.focus();
         return false;
       }
+      if (draft.period === 'once' && (!draft.startDate || draft.startDate < todayISO())) {
+        paintStart();
+        dateInput.focus();
+        return false;
+      }
       if (existing) store.updateCategory(existing.id, { ...draft, name });
       else store.addCategory({ ...draft, name });
     },
@@ -206,6 +212,7 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
     color: existing?.color || category?.color || TASK_COLORS[0],
     startTime: existing?.startTime || '',
     duration: existing?.duration || store.state.settings.minutesPerTask || 10,
+    startDate: existing?.startDate || '',
   };
 
   const nameInput = el('input', {
@@ -239,6 +246,12 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
 
   function paintCounts() {
     clearNode(countRow);
+    // A one-off happens once by definition; there is nothing to count.
+    countRow.hidden = draft.period === 'once';
+    if (draft.period === 'once') {
+      freqValue.textContent = describeFrequency(1, 'once');
+      return;
+    }
     const max = PERIOD_MAX[draft.period];
     // Common counts as one tap each, then "xx" for anything else.
     const choices =
@@ -306,11 +319,11 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
   const periodRow = el(
     'div',
     { class: 'seg seg-wide' },
-    ['week', 'month', 'year'].map((period) =>
+    ['once', 'week', 'month', 'year'].map((period) =>
       el('button', {
         type: 'button',
         class: 'seg-item',
-        text: `a ${period}`,
+        text: period === 'once' ? 'just once' : `a ${period}`,
         'aria-selected': String(period === draft.period),
         onClick: (event) => {
           draft.period = period;
@@ -319,12 +332,68 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
           }
           event.currentTarget.setAttribute('aria-selected', 'true');
           paintCounts();
+          paintStart();
         },
       }),
     ),
   );
 
   paintCounts();
+
+  /* Which day it starts on.
+
+     Left empty, the app picks the days — a weekly task lands wherever the
+     even spread puts it. Given a date, the rhythm is counted from that day
+     instead, so a task started on a Wednesday keeps landing on Wednesdays.
+     For a one-off it is simply the day it happens. */
+  const dateInput = el('input', {
+    class: 'input date-input',
+    type: 'date',
+    value: draft.startDate,
+    'aria-label': 'First day',
+    onInput: (event) => {
+      draft.startDate = event.target.value;
+      paintStart();
+    },
+  });
+
+  const startNote = el('div', { class: 'muted' });
+  const clearStart = el('button', {
+    class: 'btn btn-secondary btn-sm', type: 'button', text: 'Any day',
+    onClick: () => { draft.startDate = ''; dateInput.value = ''; paintStart(); },
+  });
+
+  function paintStart() {
+    const once = draft.period === 'once';
+    const today = todayISO();
+    const past = Boolean(draft.startDate) && draft.startDate < today;
+
+    clearStart.hidden = once || !draft.startDate;
+    startLabel.textContent = once ? 'Which day' : 'Starting';
+    // A one-off can't be put in the past — there'd be no day left for it to
+    // land on, and it would vanish without saying why.
+    if (once) dateInput.min = today;
+    else dateInput.removeAttribute('min');
+
+    startNote.className = past && once ? 'sync-problem' : 'muted';
+
+    if (once) {
+      startNote.textContent = !draft.startDate
+        ? 'Pick the day it happens.'
+        : past
+          ? `${formatLong(draft.startDate)} has been and gone — pick a day from today onwards.`
+          : `Once, on ${formatLong(draft.startDate)}. It won't come back.`;
+      return;
+    }
+
+    startNote.textContent = !draft.startDate
+      ? 'No first day — the app spreads it across the week for you.'
+      : past
+        ? `Started ${formatLong(draft.startDate)}; ${describeFrequency(draft.count, draft.period)} counted from that day.`
+        : `Starts ${formatLong(draft.startDate)}, then ${describeFrequency(draft.count, draft.period)} from there.`;
+  }
+
+  const startLabel = el('label', { text: 'Starting' });
 
   /* When you mean to do it. This is for the calendar only — the task belongs
      to the whole day and can be ticked off at any hour, so the field says so
@@ -369,6 +438,7 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
       : 'No set time — it just belongs to the day.';
   }
   paintSlot();
+  paintStart();
 
   const body = el('div', {}, [
     el('div', { class: 'field' }, [el('label', { text: 'Task' }), nameInput]),
@@ -383,6 +453,11 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
       periodRow,
       el('div', { style: 'margin-top:8px' }, [countRow]),
       freqValue,
+    ]),
+    el('div', { class: 'field' }, [
+      startLabel,
+      el('div', { class: 'slot-row' }, [dateInput, clearStart]),
+      startNote,
     ]),
     el('div', { class: 'field' }, [
       el('label', { text: 'When' }),
@@ -416,6 +491,11 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
       const name = nameInput.value.trim();
       if (!name) {
         nameInput.focus();
+        return false;
+      }
+      if (draft.period === 'once' && (!draft.startDate || draft.startDate < todayISO())) {
+        paintStart();
+        dateInput.focus();
         return false;
       }
       if (existing) {

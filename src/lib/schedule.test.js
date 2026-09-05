@@ -5,6 +5,7 @@ import {
   enforceCap,
   generateInstances,
   instancesForDate,
+  isOneOff,
   reconcile,
   rollForward,
   slotEnd,
@@ -390,5 +391,73 @@ describe('ordering a day', () => {
       inst('i-b', 'b', '2026-08-11'),
     ];
     expect(instancesForDate(instances, DAY).map((i) => i.id)).toEqual(['i-b', 'i-a']);
+  });
+});
+
+describe('choosing when a task starts', () => {
+  // 2026-08-17 is a Monday.
+  const gen = (task, today = MONDAY) =>
+    generateInstances([task], [], today, settings)
+      .map((i) => i.scheduledDate)
+      .sort();
+
+  it('puts a one-off on its day and nowhere else', () => {
+    const task = { id: 'x', period: 'once', count: 1, startDate: '2026-08-20' };
+    expect(isOneOff(task)).toBe(true);
+    expect(gen(task)).toEqual(['2026-08-20']);
+  });
+
+  it('ignores a one-off with no day chosen', () => {
+    expect(gen({ id: 'x', period: 'once', count: 1 })).toEqual([]);
+  });
+
+  it('never schedules a one-off twice, however often it reconciles', () => {
+    const task = { id: 'x', period: 'once', count: 1, startDate: '2026-08-20' };
+    let instances = generateInstances([task], [], MONDAY, settings);
+    for (let i = 0; i < 5; i += 1) {
+      instances = generateInstances([task], instances, MONDAY, settings);
+    }
+    expect(instances).toHaveLength(1);
+  });
+
+  it('starts a weekly task on the day you picked, and keeps that weekday', () => {
+    // Once a week from Wednesday: Wednesdays, not the app's choice of day.
+    const dates = gen({ id: 'x', period: 'week', count: 1, startDate: '2026-08-19' });
+    expect(dates[0]).toBe('2026-08-19');
+    for (const date of dates) expect(new Date(`${date}T00:00`).getDay()).toBe(3);
+  });
+
+  it('schedules nothing before the day you picked', () => {
+    const dates = gen({ id: 'x', period: 'week', count: 3, startDate: '2026-08-20' });
+    expect(dates.every((d) => d >= '2026-08-20')).toBe(true);
+  });
+
+  it('leaves an unanchored task on the calendar week as before', () => {
+    const anchored = gen({ id: 'x', period: 'week', count: 2, startDate: '2026-08-19' });
+    const plain = gen({ id: 'x', period: 'week', count: 2 });
+    expect(anchored).not.toEqual(plain);
+    expect(plain[0] >= MONDAY).toBe(true);
+  });
+
+  it('anchors a monthly task to its start date', () => {
+    const dates = gen({ id: 'x', period: 'month', count: 1, startDate: '2026-08-19' });
+    expect(dates[0]).toBe('2026-08-19');
+  });
+
+  it('honours a start date that has not arrived yet', () => {
+    const dates = gen({ id: 'x', period: 'week', count: 1, startDate: '2026-09-02' });
+    expect(dates.every((d) => d >= '2026-09-02')).toBe(true);
+  });
+
+  it('still rolls an unfinished one-off forward', () => {
+    const task = { id: 'x', period: 'once', count: 1, startDate: '2026-08-14' };
+    const instances = [{
+      id: 'x|once', key: 'x|once', taskId: 'x',
+      scheduledDate: '2026-08-14', originalDueDate: '2026-08-14',
+      status: 'incomplete', completedAt: null,
+    }];
+    const rolled = rollForward(instances, MONDAY);
+    expect(rolled[0].scheduledDate).toBe(MONDAY);
+    expect(rolled[0].originalDueDate).toBe('2026-08-14');
   });
 });
