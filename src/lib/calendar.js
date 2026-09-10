@@ -23,8 +23,12 @@ const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
-/** How far ahead to write. Beyond this the plan is still being rearranged. */
-const WINDOW_DAYS = 14;
+/** How far ahead to write.
+
+    Four weeks. The scheduler plans 56 days out, so every day in this window
+    has real instances behind it rather than merely ungenerated ones — going
+    further would start writing days the app has not decided on yet. */
+const WINDOW_DAYS = 28;
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -184,7 +188,7 @@ function slotted(today = todayISO()) {
 }
 
 /**
- * Push the next couple of weeks across. Safe to call whenever — an event that
+ * Push the window across. Safe to call whenever — an event that
  * hasn't changed is written with the same values, and one that has moved is
  * updated in place rather than duplicated.
  * @returns {Promise<{written: number, removed: number}>}

@@ -330,7 +330,7 @@ function calendarCard() {
     el('div', { class: 'row' }, [
       el('button', {
         class: 'btn btn-secondary btn-sm',
-        text: 'Send the next two weeks',
+        text: 'Send the next four weeks',
         onClick: (event) => push(event.currentTarget, false),
       }),
       el('button', {

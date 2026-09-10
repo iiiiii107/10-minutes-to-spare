@@ -173,7 +173,7 @@ Setting it up, once sync is already working:
    once for permission to manage events; after that the app renews its own
    access quietly.
 
-**What it writes.** The next two weeks of slotted tasks, as events carrying
+**What it writes.** The next four weeks of slotted tasks, as events carrying
 the task name and its slot, with a five-minute reminder. Event ids are worked
 out from the task and the date rather than stored, so the same task on the
 same day is one event however many devices you sync from. Move a task and its

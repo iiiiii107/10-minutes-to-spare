@@ -3,7 +3,7 @@ import { store, TASK_COLORS } from '../lib/store.js';
 import {
   PERIOD_MAX, describeFrequency, frequencyOf, shortFrequency, slotLabel,
 } from '../lib/schedule.js';
-import { formatLong, todayISO } from '../lib/dates.js';
+import { formatLong, formatShort, todayISO } from '../lib/dates.js';
 
 /* Categories and the tasks inside them. Everything is editable: tap a
    category to rename it, change its emoji or colour, or delete it. */
@@ -513,6 +513,11 @@ export function taskDialog(categoryId, existing, scheduleToday = false) {
   modal({ title: existing ? 'Edit task' : 'New task', body, actions });
 }
 
+/** On hold, as of today. */
+function isPaused(task) {
+  return Boolean(task.pausedUntil) && task.pausedUntil > todayISO();
+}
+
 function categoryCard(category) {
   const tasks = store.tasksInCategory(category.id);
   // Each card is tinted with its own colour, like a pad of coloured notes.
@@ -567,17 +572,24 @@ function categoryCard(category) {
             onClick: () => taskDialog(category.id, task),
           }, [
             el('span', { class: 'task-name', text: task.name }),
-            slotLabel(task, store.state.settings)
-              ? el('span', {
-                  class: 'task-when',
-                  text: slotLabel(task, store.state.settings),
-                })
+            // Both of these go under the name, not out in the meta row. The
+            // row already carries a frequency and three buttons; anything
+            // more and the name is left wrapping around its own badges.
+            slotLabel(task, store.state.settings) || isPaused(task)
+              ? el('span', { class: 'task-sub' }, [
+                  isPaused(task)
+                    ? el('span', { class: 'badge moved', text: `paused until ${formatShort(task.pausedUntil)}` })
+                    : null,
+                  slotLabel(task, store.state.settings)
+                    ? el('span', {
+                        class: 'task-when',
+                        text: slotLabel(task, store.state.settings),
+                      })
+                    : null,
+                ])
               : null,
           ]),
           el('div', { class: 'task-meta' }, [
-            task.pausedUntil && task.pausedUntil > new Date().toISOString().slice(0, 10)
-              ? el('span', { class: 'badge moved', text: 'paused' })
-              : null,
             el('span', { class: 'freq-badge', text: shortFrequency(task) }),
             el('button', {
               class: 'icon-btn',

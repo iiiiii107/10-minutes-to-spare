@@ -18,24 +18,42 @@ function monthTint(iso) {
   return store.state.settings.monthColors[monthOf(iso)] || 'transparent';
 }
 
-function dotsFor(date) {
+/* What a day holds, written out.
+
+   Dots said how *much* was on a day but never what, which is no use for
+   deciding whether Thursday has room. The names are listed instead, still to
+   do first, with anything already done struck through under them. */
+
+/** How many fit before the cell would grow past its neighbours. */
+const MONTH_ENTRIES = 4;
+const WEEK_ENTRIES = 8;
+
+function entriesFor(date, limit) {
   const pending = instancesForDate(store.state.instances, date, store.state.tasks);
   const done = completedOnDate(store.state.instances, date);
-  const dots = el('div', { class: 'dots' });
+  const all = [...pending, ...done];
 
-  for (const instance of [...done, ...pending].slice(0, 6)) {
+  const list = el('div', { class: 'entries' });
+  for (const instance of all.slice(0, limit)) {
     const task = store.taskById(instance.taskId);
     if (!task) continue;
-    dots.append(
+    list.append(
       el('span', {
-        style: `background:${task.color}; opacity:${instance.status === 'complete' ? 0.35 : 1}`,
+        class: `cal-task${instance.status === 'complete' ? ' done' : ''}`,
+        style: `--task:${task.color}`,
+        // The chip clips when the name is long, so the full one lives here.
+        title: task.name,
+        text: task.name,
       }),
     );
   }
-  return dots;
+
+  const over = all.length - limit;
+  if (over > 0) list.append(el('span', { class: 'cal-more', text: `+${over} more` }));
+  return list;
 }
 
-function dayCell(date, selected, onSelect, { muted = false } = {}) {
+function dayCell(date, selected, onSelect, { muted = false, limit = MONTH_ENTRIES } = {}) {
   const classes = ['day-cell'];
   if (date === todayISO()) classes.push('today');
   else if (isWeekend(date)) classes.push('weekend');
@@ -49,7 +67,7 @@ function dayCell(date, selected, onSelect, { muted = false } = {}) {
       'aria-label': formatLong(date),
       onClick: () => onSelect(date),
     },
-    [el('div', { class: 'n', text: String(fromISO(date).getDate()) }), dotsFor(date)],
+    [el('div', { class: 'n', text: String(fromISO(date).getDate()) }), entriesFor(date, limit)],
   );
 }
 
@@ -71,7 +89,7 @@ export function monthGrid(anchor, selected, onSelect) {
     if (outside && i >= 35) continue;
     grid.append(dayCell(date, selected, onSelect, { muted: outside }));
   }
-  return grid;
+  return el('div', { class: 'cal-scroll' }, [grid]);
 }
 
 export function weekGrid(anchor, selected, onSelect) {
@@ -79,15 +97,15 @@ export function weekGrid(anchor, selected, onSelect) {
   const names = orderedDayNames(weekStartsOn());
   const strip = el('div', { class: 'week-strip' });
 
+  // Headers and cells go straight into the grid, the same shape the month
+  // uses. Wrapping each day in a div made the cell a button inside a block
+  // rather than a grid item, and a button sizes to its content — which on a
+  // narrow screen collapsed the whole strip to the width of its dates.
+  for (let i = 0; i < 7; i += 1) strip.append(el('div', { class: 'dow', text: names[i] }));
   for (let i = 0; i < 7; i += 1) {
-    strip.append(
-      el('div', { style: 'flex:1; min-width:0' }, [
-        el('div', { class: 'dow', text: names[i] }),
-        dayCell(addDays(start, i), selected, onSelect),
-      ]),
-    );
+    strip.append(dayCell(addDays(start, i), selected, onSelect, { limit: WEEK_ENTRIES }));
   }
-  return strip;
+  return el('div', { class: 'cal-scroll' }, [strip]);
 }
 
 /** Read-only list for a day that isn't today. */
