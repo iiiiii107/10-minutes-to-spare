@@ -852,6 +852,30 @@ body[data-view="other"]      { --accent: var(--plum); }
 
 /* ---------- randomizer ---------- */
 
+/* Which lists the wheel draws from. Chips rather than a dropdown: the whole
+   choice is visible, and narrowing the draw is one tap from the wheel itself. */
+.wheel-lists {
+  display: flex; flex-wrap: wrap; gap: 7px; justify-content: center;
+  margin: 0 0 18px;
+}
+.list-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--hair-strong);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  color: var(--muted);
+  transition: background .16s, color .16s, border-color .16s, transform .16s;
+}
+.list-chip:hover { transform: translateY(-1px); color: var(--ink); }
+.list-chip[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--task, var(--ink-blue));
+  background: color-mix(in srgb, var(--task, var(--ink-blue)) 20%, transparent);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--task, var(--ink-blue)) 40%, transparent);
+}
+
+
 .wheel-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .wheel-frame { position: relative; width: min(240px, 62vw); aspect-ratio: 1; }
 .wheel {

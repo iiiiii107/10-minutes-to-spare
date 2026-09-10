@@ -26,6 +26,8 @@ export const DEFAULT_STATE = {
     minutesPerTask: 10,
     notificationsEnabled: false,
     calendarSync: false,
+    // Lists the wheel draws from. Empty means all of them.
+    wheelLists: [],
     theme: 'system',
     statsVisible: Object.fromEntries(STAT_KEYS.map((s) => [s.id, true])),
     // Your own settings for the two tools that only mark up. The pen and the
